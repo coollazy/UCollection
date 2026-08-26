@@ -1,0 +1,749 @@
+<title>專案開發流程框架 — AI 協作版</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --surface: #ffffff;
+    --surface-2: #f7f9fb;
+    --ink: #1c2733;
+    --muted: #5c6b7a;
+    --line: #ccd4dc;
+    --line-strong: #aab5c0;
+    --accent-gate: #b8541f;
+    --accent-gate-soft: #f3e2d3;
+    --accent-flow: #1f7a76;
+    --accent-flow-soft: #dcefed;
+    --font-body: "PingFang TC", "Hiragino Sans TC", "Microsoft JhengHei", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0e1318;
+    --surface: #161c23;
+    --surface-2: #12171d;
+    --ink: #e6eaed;
+    --muted: #93a0ac;
+    --line: #2b3540;
+    --line-strong: #3a4552;
+    --accent-gate: #e08a4f;
+    --accent-gate-soft: #3a2a1c;
+    --accent-flow: #4fb8ae;
+    --accent-flow-soft: #16302e;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1318;
+      --surface: #161c23;
+      --surface-2: #12171d;
+      --ink: #e6eaed;
+      --muted: #93a0ac;
+      --line: #2b3540;
+      --line-strong: #3a4552;
+      --accent-gate: #e08a4f;
+      --accent-gate-soft: #3a2a1c;
+      --accent-flow: #4fb8ae;
+      --accent-flow-soft: #16302e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      linear-gradient(var(--bg), var(--bg)),
+      repeating-linear-gradient(0deg, transparent, transparent 31px, color-mix(in srgb, var(--line) 55%, transparent) 32px),
+      repeating-linear-gradient(90deg, transparent, transparent 31px, color-mix(in srgb, var(--line) 55%, transparent) 32px);
+    background-blend-mode: normal;
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-flow);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  .dek {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 62ch;
+    margin: 0 0 8px;
+  }
+
+  .origin {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 18px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  section { margin-top: 72px; }
+
+  h2 {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: -0.005em;
+  }
+
+  .section-lead {
+    color: var(--muted);
+    font-size: 14.5px;
+    margin: 0 0 32px;
+    max-width: 60ch;
+  }
+
+  /* ---- Stage rail ---- */
+
+  .rail {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    column-gap: 20px;
+  }
+
+  .stage {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    column-gap: 20px;
+    position: relative;
+  }
+
+  .stage-marker {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  .stage-marker::before {
+    content: "";
+    position: absolute;
+    top: 40px;
+    bottom: -28px;
+    width: 2px;
+    background: var(--line-strong);
+  }
+
+  .stage:last-of-type .stage-marker::before { display: none; }
+
+  .stage-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 3px;
+    border: 1.5px solid var(--accent-flow);
+    color: var(--accent-flow);
+    background: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+  .stage-body {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 20px 24px 22px;
+    margin-bottom: 20px;
+  }
+
+  .stage-body h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 2px;
+  }
+
+  .stage-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+
+  .stage-goal {
+    margin: 0 0 14px;
+    font-size: 15px;
+  }
+
+  .stage-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 0;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .stage-meta > div { display: flex; gap: 10px; }
+
+  .stage-meta dt {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    flex: 0 0 88px;
+    padding-top: 1px;
+  }
+
+  .stage-meta dd {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink);
+  }
+
+  .gate {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    column-gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .gate-marker {
+    display: flex;
+    justify-content: center;
+  }
+
+  .gate-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent-gate);
+    margin-top: 3px;
+  }
+
+  .gate-content {
+    background: var(--accent-gate-soft);
+    border: 1px solid color-mix(in srgb, var(--accent-gate) 45%, transparent);
+    border-radius: 4px;
+    padding: 10px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+
+  .gate-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-gate);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .gate-content p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  /* ---- Loop diagram ---- */
+
+  .loop-wrap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 28px;
+  }
+
+  .loop-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0;
+  }
+
+  .loop-step {
+    position: relative;
+    padding: 0 18px 0 0;
+  }
+
+  .loop-step:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -4px;
+    top: 10px;
+    color: var(--accent-flow);
+    font-size: 15px;
+  }
+
+  .loop-step-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-flow);
+    margin-bottom: 6px;
+  }
+
+  .loop-step-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+
+  .loop-step-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .loop-return {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---- Risk table ---- */
+
+  .table-scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface-2);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  .risk-pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 9px;
+    border-radius: 3px;
+  }
+
+  .risk-high { background: var(--accent-gate-soft); color: var(--accent-gate); }
+  .risk-mid { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+  .risk-low { background: var(--accent-flow-soft); color: var(--accent-flow); }
+
+  /* ---- Continuity list ---- */
+
+  .continuity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .continuity-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px;
+  }
+
+  .continuity-card h3 {
+    font-size: 14.5px;
+    margin: 0 0 8px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+  }
+
+  .continuity-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .position-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-flow);
+    background: var(--accent-flow-soft);
+    padding: 4px 10px;
+    border-radius: 3px;
+  }
+
+  footer p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 560px) {
+    .stage, .gate, .rail { grid-template-columns: 40px 1fr; column-gap: 14px; }
+    .stage-marker::before { top: 34px; }
+    .stage-num { width: 32px; height: 32px; font-size: 11px; }
+    .stage-body { padding: 16px 16px 18px; }
+    .stage-meta > div { flex-direction: column; gap: 2px; }
+    .stage-meta dt { flex: none; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Framework · 可重複使用</p>
+    <h1>專案開發流程框架</h1>
+    <p class="dek">從一份需求書，走到一套能出貨的產品，中間該經過哪九個階段、每個階段之間該把關什麼——這份框架整理的是「流程」本身，不是某個專案的實作細節，設計成往後任何專案都能直接套用。</p>
+    <p class="origin">整理自 UCollection（USDT-TRC20 代收軟體）專案的開發討論，已抽掉專案細節，保留可通用的部分 · 2026-08-26</p>
+  </header>
+
+  <section aria-labelledby="rail-heading">
+    <h2 id="rail-heading">九個階段</h2>
+    <p class="section-lead">每個階段之間插著一個「關卡」——條件不成立，就不該進下一階段。這是整份框架裡真正決定「穩不穩」的部分。</p>
+
+    <div class="rail">
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">01</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Requirements</p>
+          <h3>需求定義</h3>
+          <p class="stage-goal">釐清「做什麼」，先不管「怎麼做」。訪談、拆解範圍、明確寫出 In / Out of scope。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>需求文件，含範圍界線與待確認事項清單</dd></div>
+            <div><dt>AI 協作重點</dt><dd>範圍不清楚時，先要求多角度分析，不要急著要一條窄步驟</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>需求文件內容已核准；待確認事項至少排出哪些不卡技術進度、哪些是商業/法務決定。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">02</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Feasibility Spikes</p>
+          <h3>技術可行性驗證</h3>
+          <p class="stage-goal">在設計整體架構之前，先用最小、可丟棄的程式碼或查證，證明架構將要依賴的假設是真的。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>驗證腳本或查證結論（非產品程式碼），列出哪些假設已證實可行</dd></div>
+            <div><dt>AI 協作重點</dt><dd>AI 對冷門或特定領域的 API 容易憑訓練資料猜錯，這階段用真實查證取代猜測</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>關鍵假設都驗證過、結論已確認，架構文件才不是蓋在空氣上。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">03</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Architecture</p>
+          <h3>技術架構設計</h3>
+          <p class="stage-goal">定案「怎麼蓋」——技術棧、模組邊界、資料流、外部介面契約。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>架構文件、專案層級 CLAUDE.md（給 AI 的行為準則）、決策紀錄（ADR）</dd></div>
+            <div><dt>AI 協作重點</dt><dd>CLAUDE.md 讓決策不會在不同 session 之間漂移或被悄悄翻案</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>架構文件與 CLAUDE.md 已看過並定案，才開始建骨架、寫程式碼。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">04</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Scaffolding</p>
+          <h3>專案骨架建置</h3>
+          <p class="stage-goal">在寫任何功能之前，先架好一張自動化安全網。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>repo 結構、測試/lint 自動執行、環境隔離（如正式/測試環境分離）</dd></div>
+            <div><dt>AI 協作重點</dt><dd>安全網架好後，AI 之後每次改動都有自動檢查兜底，不必事事靠人眼</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>骨架跑得動、CI 綠燈，才開始堆功能。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">05</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Core Development</p>
+          <h3>核心模組分階段開發</h3>
+          <p class="stage-goal">依風險高低排序開發，風險最高、最基礎的先做，而不是先做看得到畫面的部分。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>一系列可獨立驗證的功能模組，每個都走一次「任務循環」（見下）</dd></div>
+            <div><dt>AI 協作重點</dt><dd>高風險模組的方案要先核准、程式碼要逐行看過，不能只憑「測試通過」就信</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>核心模組都各自通過任務循環驗收，不是「大致能動」就算過。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">06</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Integration Trial</p>
+          <h3>整合試跑</h3>
+          <p class="stage-goal">把整條流程接起來，在接近真實的環境跑一段時間，抓單元測試抓不到的問題。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>試跑報告、發現的邊界案例清單</dd></div>
+            <div><dt>AI 協作重點</dt><dd>時序、併發、外部服務異常這類問題，只有整合層級才會冒出來</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>整合試跑穩定一段時間，沒有未解的異常。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">07</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Whole-system Review</p>
+          <h3>全系統審查</h3>
+          <p class="stage-goal">跳脫個別模組，對整個系統再看一次，尤其是敏感或高風險的部分。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>審查報告、修復紀錄</dd></div>
+            <div><dt>AI 協作重點</dt><dd>個別模組都過關，不代表組合起來沒問題——這是收尾，不是重複前面步驟</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>審查發現的問題都已處理，或有明確的風險接受紀錄。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">08</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Delivery Packaging</p>
+          <h3>交付物準備</h3>
+          <p class="stage-goal">把「能動的程式碼」變成「可以交付/銷售的產品」。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>部署文件、打包腳本、法務或商業文件（如適用）</dd></div>
+            <div><dt>AI 協作重點</dt><dd>這步常被低估——產品力不只是程式碼能跑</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <div class="gate">
+        <div class="gate-marker"><div class="gate-dot"></div></div>
+        <div class="gate-content">
+          <span class="gate-label">關卡</span>
+          <p>交付物本身能被一個沒參與開發的人獨立跑起來。</p>
+        </div>
+      </div>
+
+      <article class="stage">
+        <div class="stage-marker"><span class="stage-num">09</span></div>
+        <div class="stage-body">
+          <p class="stage-tag">Pilot → Ship</p>
+          <h3>小規模試跑後正式交付</h3>
+          <p class="stage-goal">用小範圍真實場景驗證一次，再正式對外，把早期問題留在低成本的階段解決。</p>
+          <dl class="stage-meta">
+            <div><dt>產出</dt><dd>試跑回饋、正式上線</dd></div>
+            <div><dt>AI 協作重點</dt><dd>上線後的問題回饋會重新進入「任務循環」——這不是流程的終點，是新一輪循環的起點</dd></div>
+          </dl>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section aria-labelledby="loop-heading">
+    <h2 id="loop-heading">任務循環</h2>
+    <p class="section-lead">每個階段內部，每一個任務都重複跑這套循環——差別只在風險等級決定哪幾步可以省（見下方風險分級）。</p>
+
+    <div class="loop-wrap">
+      <div class="loop-steps">
+        <div class="loop-step">
+          <p class="loop-step-num">01</p>
+          <p class="loop-step-title">定範圍與判準</p>
+          <p class="loop-step-desc">寫清楚「完成」是什麼，高風險項目要有具體測試向量</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">02</p>
+          <p class="loop-step-title">先出方案待核准</p>
+          <p class="loop-step-desc">動手前先對齊方向，不讓 AI 悶頭做完一大段</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">03</p>
+          <p class="loop-step-title">實作＋測試同步</p>
+          <p class="loop-step-desc">不是先寫功能、測試之後再補</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">04</p>
+          <p class="loop-step-title">自我驗證</p>
+          <p class="loop-step-desc">實際跑一次流程看結果，不只是測試通過</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">05</p>
+          <p class="loop-step-title">自動化 review</p>
+          <p class="loop-step-desc">邏輯審查 + 敏感模組另跑安全審查</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">06</p>
+          <p class="loop-step-title">人工看 diff</p>
+          <p class="loop-step-desc">高風險程式碼逐行看，其餘抽查即可</p>
+        </div>
+        <div class="loop-step">
+          <p class="loop-step-num">07</p>
+          <p class="loop-step-title">commit</p>
+          <p class="loop-step-desc">小步提交，不累積一大包才進版控</p>
+        </div>
+      </div>
+      <div class="loop-return">↩ 下一個任務，回到 01</div>
+    </div>
+  </section>
+
+  <section aria-labelledby="risk-heading">
+    <h2 id="risk-heading">風險分級</h2>
+    <p class="section-lead">用風險決定循環要走多完整，不是每個任務都走滿七步。</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>等級</th>
+            <th>典型例子</th>
+            <th>循環要求</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="risk-pill risk-high">高</span></td>
+            <td>核心演算法正確性、簽章/金鑰相關流程、任何「錯了會默默壞掉、不會報錯」的邏輯</td>
+            <td>七步全走，第 02 步（先核准方案）與第 06 步（逐行看 diff）不能省</td>
+          </tr>
+          <tr>
+            <td><span class="risk-pill risk-mid">中</span></td>
+            <td>狀態機、對外整合、重試/重送邏輯</td>
+            <td>可省略第 02 步的正式核准，但測試與 review 要有</td>
+          </tr>
+          <tr>
+            <td><span class="risk-pill risk-low">低</span></td>
+            <td>介面排版、報表格式、文案調整</td>
+            <td>快速做、事後抽查即可</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="continuity-heading">
+    <h2 id="continuity-heading">跨 Session 連續性機制</h2>
+    <p class="section-lead">專案會橫跨很多次對話，光靠當次對話記得決策是不夠的。</p>
+
+    <div class="continuity-grid">
+      <div class="continuity-card">
+        <h3>CLAUDE.md</h3>
+        <p>專案層級的行為準則，放死規則（例如不可協商的架構限制），每次開新 session 自動載入，不必重新交代。</p>
+      </div>
+      <div class="continuity-card">
+        <h3>決策紀錄 / ADR</h3>
+        <p>把「為什麼選這個方案」的討論過程與理由留下簡短紀錄，避免脈絡只存在對話紀錄裡、之後被新 session 悄悄翻案。</p>
+      </div>
+      <div class="continuity-card">
+        <h3>落地的待辦清單</h3>
+        <p>目前做到哪、下一步是什麼，寫成檔案而不是靠記憶，不然每次都要重新對齊進度。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="position-tag">目前位置 · UCollection</span>
+    <p>階段 01 完成，準備進入階段 02（技術可行性驗證）。</p>
+  </footer>
+
+</div>
