@@ -1,0 +1,113 @@
+// Command ucollection is the UCollection entry point: it loads config, opens
+// the database, runs migrations, starts the on-chain scanner background
+// task, and serves HTTP. See docs/開發流程框架-03-技術架構設計.md 第1節.
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/coollazy/UCollection/internal/config"
+	"github.com/coollazy/UCollection/internal/scanner"
+	"github.com/coollazy/UCollection/internal/store"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	migrateCtx, cancelMigrate := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelMigrate()
+	if err := store.Migrate(migrateCtx, cfg.DatabaseURL); err != nil {
+		return err
+	}
+
+	pool, err := store.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", healthzHandler(pool))
+	// Route prefixes per 技術架構設計第1節 — handlers are wired up as each
+	// module is built in 階段05:
+	//   /api/v1/...      -> internal/api
+	//   /admin/...       -> internal/admin
+	//   /checkout/{token} -> internal/checkout
+	//   /tron-proxy/...  -> internal/consolidation + internal/tronclient
+
+	srv := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var scannerErr error
+	go func() {
+		defer wg.Done()
+		if err := scanner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			scannerErr = err
+			stop()
+		}
+	}()
+
+	var serveErr error
+	go func() {
+		defer wg.Done()
+		log.Printf("listening on %s", cfg.ListenAddr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serveErr = err
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("http shutdown: %v", err)
+	}
+
+	wg.Wait()
+
+	if serveErr != nil {
+		return serveErr
+	}
+	return scannerErr
+}
+
+func healthzHandler(pool *store.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		if err := pool.Ping(ctx); err != nil {
+			http.Error(w, "db unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}
+}

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ucollection
+          POSTGRES_PASSWORD: ucollection
+          POSTGRES_DB: ucollection
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ucollection"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://ucollection:ucollection@localhost:5432/ucollection?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.13.2
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./... -race
+
+      - name: docker build
+        run: docker build -t ucollection:ci .
