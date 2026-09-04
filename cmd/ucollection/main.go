@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/coollazy/UCollection/internal/api"
+	"github.com/coollazy/UCollection/internal/auth"
 	"github.com/coollazy/UCollection/internal/config"
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
@@ -54,14 +55,23 @@ func run() error {
 	if err := scanner.EnsureCheckpoint(ctx, pool); err != nil {
 		return err
 	}
+	if err := auth.EnsureAdminAccount(ctx, pool, cfg.AdminUsername, cfg.AdminPassword); err != nil {
+		return err
+	}
 	tronClient := tronclient.NewClient(cfg.TronGridBaseURL, cfg.TronGridAPIKey)
+
+	authDeps := auth.Deps{Pool: pool, PublicOrigin: cfg.PublicOrigin, CookieSecure: cfg.CookieSecure}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
 	mux.Handle("/api/v1/", api.NewMux(pool, cfg.PublicOrigin))
+	auth.RegisterRoutes(mux, authDeps)
 	// Remaining route prefixes per 技術架構設計第1節 — handlers are wired up as
-	// each module is built in 階段05:
-	//   /admin/...       -> internal/admin
+	// each module is built in 階段05 (internal/auth registers exact
+	// /admin/login, /admin/password, etc. patterns above rather than
+	// owning the whole /admin/ prefix, so internal/admin can register its
+	// own /admin/... routes on this same mux later without conflict):
+	//   /admin/...       -> internal/admin (dashboard, orders, settings, ...)
 	//   /checkout/{token} -> internal/checkout
 	//   /tron-proxy/...  -> internal/consolidation + internal/tronclient
 
@@ -72,7 +82,7 @@ func run() error {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 
 	var scannerErr error
 	go func() {
@@ -89,6 +99,15 @@ func run() error {
 		defer wg.Done()
 		if err := webhook.Run(ctx, webhook.Deps{Pool: pool}); err != nil && !errors.Is(err, context.Canceled) {
 			webhookErr = err
+			stop()
+		}
+	}()
+
+	var authErr error
+	go func() {
+		defer wg.Done()
+		if err := auth.Run(ctx, authDeps); err != nil && !errors.Is(err, context.Canceled) {
+			authErr = err
 			stop()
 		}
 	}()
@@ -119,7 +138,10 @@ func run() error {
 	if scannerErr != nil {
 		return scannerErr
 	}
-	return webhookErr
+	if webhookErr != nil {
+		return webhookErr
+	}
+	return authErr
 }
 
 func healthzHandler(pool *store.Pool) http.HandlerFunc {

@@ -11,6 +11,9 @@ services:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}
       TRONGRID_BASE_URL: ${TRONGRID_BASE_URL:-https://api.trongrid.io}
       TRONGRID_API_KEY: ${TRONGRID_API_KEY:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
     depends_on:
       db:
         condition: service_healthy

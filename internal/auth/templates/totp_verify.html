@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>輸入驗證碼 - UCollection 後台</title></head>
+<body>
+<h1>輸入兩步驟驗證碼</h1>
+{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/login/totp">
+  <p><label>驗證碼 <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus></label></p>
+  <p><button type="submit">驗證</button></p>
+</form>
+</body>
+</html>

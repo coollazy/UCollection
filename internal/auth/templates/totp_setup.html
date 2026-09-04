@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>設定兩步驟驗證 - UCollection 後台</title></head>
+<body>
+<h1>首次登入：設定兩步驟驗證（TOTP）</h1>
+<p>請用驗證器 App（如 Google Authenticator）掃描下方 QR code，或手動輸入密鑰。</p>
+<p><img src="data:image/png;base64,{{.QRCodeBase64}}" alt="TOTP QR code" width="256" height="256"></p>
+<p>手動輸入密鑰：<code>{{.Secret}}</code></p>
+{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/login/totp-setup">
+  <p><label>驗證碼 <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus></label></p>
+  <p><button type="submit">完成設定</button></p>
+</form>
+</body>
+</html>

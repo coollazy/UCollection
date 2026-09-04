@@ -10,6 +10,9 @@ func TestLoad_Defaults(t *testing.T) {
 	t.Setenv(envTronGridAPIKey, "")
 	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
+	t.Setenv(envAdminUsername, "")
+	t.Setenv(envAdminPassword, "")
+	t.Setenv(envCookieSecure, "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -27,6 +30,12 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.TronGridAPIKey != "" {
 		t.Errorf("TronGridAPIKey = %q, want empty (optional)", cfg.TronGridAPIKey)
 	}
+	if cfg.AdminUsername != "" || cfg.AdminPassword != "" {
+		t.Errorf("AdminUsername/AdminPassword = %q/%q, want empty (only required at first-boot bootstrap, not by Load())", cfg.AdminUsername, cfg.AdminPassword)
+	}
+	if cfg.CookieSecure != defaultCookieSecure {
+		t.Errorf("CookieSecure = %v, want default %v", cfg.CookieSecure, defaultCookieSecure)
+	}
 }
 
 func TestLoad_Overrides(t *testing.T) {
@@ -37,10 +46,19 @@ func TestLoad_Overrides(t *testing.T) {
 	t.Setenv(envTronGridAPIKey, "test-key")
 	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
+	t.Setenv(envAdminUsername, "admin")
+	t.Setenv(envAdminPassword, "bootstrap-password")
+	t.Setenv(envCookieSecure, "false")
 
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.AdminUsername != "admin" || cfg.AdminPassword != "bootstrap-password" {
+		t.Errorf("AdminUsername/AdminPassword = %q/%q, want overrides", cfg.AdminUsername, cfg.AdminPassword)
+	}
+	if cfg.CookieSecure {
+		t.Errorf("CookieSecure = %v, want false (override)", cfg.CookieSecure)
 	}
 	if cfg.ListenAddr != ":9090" {
 		t.Errorf("ListenAddr = %q, want %q", cfg.ListenAddr, ":9090")
