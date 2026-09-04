@@ -16,6 +16,7 @@ import (
 	"github.com/coollazy/UCollection/internal/config"
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
+	"github.com/coollazy/UCollection/internal/tronclient"
 )
 
 func main() {
@@ -45,6 +46,14 @@ func run() error {
 	}
 	defer pool.Close()
 
+	// Must happen before the HTTP server starts accepting traffic that
+	// could create orders (技術架構設計第4節「首次部署SOP」) — not left to
+	// scanner.Run's own goroutine, which only starts after ListenAndServe.
+	if err := scanner.EnsureCheckpoint(ctx, pool); err != nil {
+		return err
+	}
+	tronClient := tronclient.NewClient(cfg.TronGridBaseURL, cfg.TronGridAPIKey)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
 	// Route prefixes per 技術架構設計第1節 — handlers are wired up as each
@@ -66,7 +75,8 @@ func run() error {
 	var scannerErr error
 	go func() {
 		defer wg.Done()
-		if err := scanner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		deps := scanner.Deps{Pool: pool, TronClient: tronClient, ContractAddress: cfg.USDTContractAddress}
+		if err := scanner.Run(ctx, deps); err != nil && !errors.Is(err, context.Canceled) {
 			scannerErr = err
 			stop()
 		}

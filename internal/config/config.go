@@ -16,28 +16,48 @@ type Config struct {
 	DatabaseURL string
 	// Environment distinguishes production from test deployments.
 	Environment string
+	// TronGridBaseURL is the base URL for TronGrid API calls (see
+	// internal/tronclient). Overridable for testnets (Shasta) or
+	// self-hosted TronGrid-compatible endpoints.
+	TronGridBaseURL string
+	// TronGridAPIKey is optional — TronGrid allows unauthenticated
+	// requests at a lower rate limit (see internal/tronclient.NewClient).
+	TronGridAPIKey string
+	// USDTContractAddress is the TRC20 contract internal/scanner watches
+	// for Transfer events (see internal/scanner).
+	USDTContractAddress string
 }
 
 const (
-	envListenAddr  = "LISTEN_ADDR"
-	envDatabaseURL = "DATABASE_URL"
-	envEnvironment = "ENVIRONMENT"
+	envListenAddr          = "LISTEN_ADDR"
+	envDatabaseURL         = "DATABASE_URL"
+	envEnvironment         = "ENVIRONMENT"
+	envTronGridBaseURL     = "TRONGRID_BASE_URL"
+	envTronGridAPIKey      = "TRONGRID_API_KEY" //nolint:gosec // this is an env var name, not a credential
+	envUSDTContractAddress = "USDT_CONTRACT_ADDRESS"
 
-	defaultListenAddr  = ":8080"
-	defaultEnvironment = "production"
+	defaultListenAddr      = ":8080"
+	defaultEnvironment     = "production"
+	defaultTronGridBaseURL = "https://api.trongrid.io"
 )
 
 // Load reads Config from environment variables, applying defaults for
-// optional values. DatabaseURL is required.
+// optional values. DatabaseURL and USDTContractAddress are required.
 func Load() (Config, error) {
 	cfg := Config{
-		ListenAddr:  getEnvDefault(envListenAddr, defaultListenAddr),
-		DatabaseURL: os.Getenv(envDatabaseURL),
-		Environment: getEnvDefault(envEnvironment, defaultEnvironment),
+		ListenAddr:          getEnvDefault(envListenAddr, defaultListenAddr),
+		DatabaseURL:         os.Getenv(envDatabaseURL),
+		Environment:         getEnvDefault(envEnvironment, defaultEnvironment),
+		TronGridBaseURL:     getEnvDefault(envTronGridBaseURL, defaultTronGridBaseURL),
+		TronGridAPIKey:      os.Getenv(envTronGridAPIKey),
+		USDTContractAddress: os.Getenv(envUSDTContractAddress),
 	}
 
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("config: %s is required", envDatabaseURL)
+	}
+	if cfg.USDTContractAddress == "" {
+		return Config{}, fmt.Errorf("config: %s is required", envUSDTContractAddress)
 	}
 
 	return cfg, nil

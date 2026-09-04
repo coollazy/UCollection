@@ -7,6 +7,9 @@ services:
       LISTEN_ADDR: ":8080"
       DATABASE_URL: postgres://${POSTGRES_USER:-ucollection}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ucollection}?sslmode=disable
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      USDT_CONTRACT_ADDRESS: ${USDT_CONTRACT_ADDRESS:?Set USDT_CONTRACT_ADDRESS in .env}
+      TRONGRID_BASE_URL: ${TRONGRID_BASE_URL:-https://api.trongrid.io}
+      TRONGRID_API_KEY: ${TRONGRID_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

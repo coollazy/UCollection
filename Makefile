@@ -7,7 +7,9 @@ run: build
 	./bin/ucollection
 
 test:
-	go test ./... -race
+	# -p 1: packages with real-PostgreSQL integration tests share one DB
+	# instance/table set, so package test binaries must not run concurrently.
+	go test ./... -race -p 1
 
 lint:
 	golangci-lint run ./...
