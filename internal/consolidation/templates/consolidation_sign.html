@@ -46,8 +46,16 @@
      JSON.parse(document.getElementById('page-data').textContent). -->
 <div id="page-data" hidden>{{.PageDataJSON}}</div>
 
+<!-- Only two files are ever produced by scripts/build-consolidation-sign.mjs:
+     polyfill.bundle.js (window.Buffer/window.process) and bundle.js, whose
+     esbuild entry point IS web/js-src/sign-entry.js — its code (and
+     everything it imports: page.js/derive.js/sign.js/...) is already
+     inlined into bundle.js. There is no separate sign-entry.js static
+     file to load; an earlier draft of this template had a stray third
+     <script src="/static/js/sign-entry.js"> tag that 404'd on every page
+     load — harmless (bundle.js already ran sign-entry.js's logic) but
+     wrong, found via real-browser network log during Shasta testing. -->
 <script src="/static/js/polyfill.bundle.js"></script>
 <script src="/static/js/bundle.js"></script>
-<script src="/static/js/sign-entry.js"></script>
 </body>
 </html>
