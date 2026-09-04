@@ -67,6 +67,34 @@ func TestDoRequest_NoRetryOnClientError(t *testing.T) {
 	}
 }
 
+func TestDoPostRequest_RetriesOn5xxThenSucceeds(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if attempts.Add(1) <= 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "")
+	body, err := c.doPostRequest(context.Background(), "/wallet/ping", []byte(`{"value":"x"}`))
+	if err != nil {
+		t.Fatalf("doPostRequest() error = %v", err)
+	}
+	if string(body) != `{"ok":true}` {
+		t.Errorf("doPostRequest() body = %q", body)
+	}
+	if got := attempts.Load(); got != 2 {
+		t.Errorf("attempts = %d, want 2", got)
+	}
+}
+
 func TestDoRequest_SendsAPIKeyHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get(apiKeyHeader); got != "test-key" {

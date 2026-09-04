@@ -4,6 +4,7 @@
 package tronclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -44,12 +45,38 @@ func NewClient(baseURL, apiKey string) *Client {
 }
 
 // doRequest executes a GET request against path (relative to baseURL,
-// including any query string) and returns the raw response body. It retries
-// on HTTP 429 and 5xx responses with exponential backoff plus jitter, up to
-// maxRetries attempts; other non-2xx statuses are returned immediately as
-// errors without retrying, since retrying a client error (e.g. 400/404)
-// cannot succeed.
+// including any query string) and returns the raw response body. See
+// doRequestWithRetry for retry semantics.
 func (c *Client) doRequest(ctx context.Context, path string) ([]byte, error) {
+	return c.doRequestWithRetry(ctx, func() (*http.Request, error) {
+		return http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	}, path)
+}
+
+// doPostRequest executes a POST request with a JSON body against path and
+// returns the raw response body. Used for TronGrid's read-only/side-effect-
+// free `/wallet/*` endpoints (triggersmartcontract, createtransaction,
+// gettransactioninfobyid) where retrying a failed attempt is safe. It is
+// deliberately NOT used for broadcasttransaction — see BroadcastTransaction
+// in transaction.go for why that one must never auto-retry.
+func (c *Client) doPostRequest(ctx context.Context, path string, body []byte) ([]byte, error) {
+	return c.doRequestWithRetry(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return req, nil
+	}, path)
+}
+
+// doRequestWithRetry retries on HTTP 429 and 5xx responses (and network-
+// level failures, which are treated as transient) with exponential backoff
+// plus jitter, up to maxRetries attempts; other non-2xx statuses are
+// returned immediately as errors without retrying, since retrying a client
+// error (e.g. 400/404) cannot succeed. buildReq is called fresh on every
+// attempt since an *http.Request's body reader can only be consumed once.
+func (c *Client) doRequestWithRetry(ctx context.Context, buildReq func() (*http.Request, error), path string) ([]byte, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -62,7 +89,7 @@ func (c *Client) doRequest(ctx context.Context, path string) ([]byte, error) {
 			}
 		}
 
-		body, retryable, err := c.doRequestOnce(ctx, path)
+		body, retryable, err := c.doRequestOnce(ctx, buildReq, path)
 		if err == nil {
 			return body, nil
 		}
@@ -75,8 +102,8 @@ func (c *Client) doRequest(ctx context.Context, path string) ([]byte, error) {
 	return nil, fmt.Errorf("tronclient: exhausted %d retries: %w", maxRetries, lastErr)
 }
 
-func (c *Client) doRequestOnce(ctx context.Context, path string) (body []byte, retryable bool, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+func (c *Client) doRequestOnce(ctx context.Context, buildReq func() (*http.Request, error), path string) (body []byte, retryable bool, err error) {
+	req, err := buildReq()
 	if err != nil {
 		return nil, false, fmt.Errorf("tronclient: build request: %w", err)
 	}

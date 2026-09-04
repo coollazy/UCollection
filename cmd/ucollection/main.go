@@ -16,6 +16,7 @@ import (
 	"github.com/coollazy/UCollection/internal/api"
 	"github.com/coollazy/UCollection/internal/auth"
 	"github.com/coollazy/UCollection/internal/config"
+	"github.com/coollazy/UCollection/internal/consolidation"
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
 	"github.com/coollazy/UCollection/internal/tronclient"
@@ -61,19 +62,22 @@ func run() error {
 	tronClient := tronclient.NewClient(cfg.TronGridBaseURL, cfg.TronGridAPIKey)
 
 	authDeps := auth.Deps{Pool: pool, PublicOrigin: cfg.PublicOrigin, CookieSecure: cfg.CookieSecure}
+	consolidationDeps := consolidation.Deps{Pool: pool, TronClient: tronClient, USDTContractAddress: cfg.USDTContractAddress}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
 	mux.Handle("/api/v1/", api.NewMux(pool, cfg.PublicOrigin))
 	auth.RegisterRoutes(mux, authDeps)
+	consolidation.RegisterRoutes(mux, consolidationDeps, authDeps)
 	// Remaining route prefixes per 技術架構設計第1節 — handlers are wired up as
-	// each module is built in 階段05 (internal/auth registers exact
-	// /admin/login, /admin/password, etc. patterns above rather than
-	// owning the whole /admin/ prefix, so internal/admin can register its
-	// own /admin/... routes on this same mux later without conflict):
-	//   /admin/...       -> internal/admin (dashboard, orders, settings, ...)
+	// each module is built in 階段05 (internal/auth/internal/consolidation
+	// register exact patterns above rather than owning a whole prefix, so
+	// internal/admin can register its own /admin/... routes on this same
+	// mux later without conflict):
+	//   /admin/...       -> internal/admin (dashboard, orders, settings, ...;
+	//                       internal/consolidation's own /admin/consolidation/...
+	//                       HTML pages are Part 2/3, not yet built)
 	//   /checkout/{token} -> internal/checkout
-	//   /tron-proxy/...  -> internal/consolidation + internal/tronclient
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,

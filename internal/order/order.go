@@ -20,6 +20,14 @@ const (
 	StatusExpired             Status = "EXPIRED"
 )
 
+// ConsolidationStatus values for orders.consolidation_status (技術架構設計
+// 第2節/第10節). Consolidated is permanent — once set it is never reverted,
+// even if the address later receives new funds (需求書5.9已知限制).
+const (
+	ConsolidationNotConsolidated = "not_consolidated"
+	ConsolidationConsolidated    = "consolidated"
+)
+
 // terminalStatuses are the statuses that trigger a webhook_deliveries INSERT
 // on entry (第8節「觸發整合」).
 var terminalStatuses = map[Status]bool{
