@@ -18,6 +18,7 @@ import (
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
 	"github.com/coollazy/UCollection/internal/tronclient"
+	"github.com/coollazy/UCollection/internal/webhook"
 )
 
 func main() {
@@ -71,7 +72,7 @@ func run() error {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
 	var scannerErr error
 	go func() {
@@ -79,6 +80,15 @@ func run() error {
 		deps := scanner.Deps{Pool: pool, TronClient: tronClient, ContractAddress: cfg.USDTContractAddress}
 		if err := scanner.Run(ctx, deps); err != nil && !errors.Is(err, context.Canceled) {
 			scannerErr = err
+			stop()
+		}
+	}()
+
+	var webhookErr error
+	go func() {
+		defer wg.Done()
+		if err := webhook.Run(ctx, webhook.Deps{Pool: pool}); err != nil && !errors.Is(err, context.Canceled) {
+			webhookErr = err
 			stop()
 		}
 	}()
@@ -106,7 +116,10 @@ func run() error {
 	if serveErr != nil {
 		return serveErr
 	}
-	return scannerErr
+	if scannerErr != nil {
+		return scannerErr
+	}
+	return webhookErr
 }
 
 func healthzHandler(pool *store.Pool) http.HandlerFunc {
