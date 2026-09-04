@@ -4,21 +4,25 @@
   "description": "Offline signing bundle for /admin/consolidation/sign — mnemonic/private-key handling stays in-browser only (CLAUDE.md 安全鐵律1/3). Not a build chain for the rest of the app (that's html/template + htmx, no Node.js).",
   "type": "module",
   "scripts": {
-    "test": "node --test web/js-src/*.test.js"
+    "test": "node --test web/js-src/*.test.js",
+    "build": "node scripts/build-consolidation-sign.mjs",
+    "build:check": "node scripts/build-consolidation-sign.mjs --check"
   },
   "dependencies": {
-    "bip39": "3.1.0",
-    "hdkey": "2.1.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
-    "bs58check": "4.0.0"
+    "bip39": "3.1.0",
+    "bs58check": "4.0.0",
+    "hdkey": "2.1.0"
   },
   "devDependencies": {
-    "esbuild": "0.28.2",
+    "assert": "^2.1.0",
     "buffer": "6.0.3",
-    "process": "0.11.10",
     "crypto-browserify": "3.12.1",
-    "stream-browserify": "3.0.0",
-    "events": "3.3.0"
+    "esbuild": "0.28.2",
+    "events": "3.3.0",
+    "fake-indexeddb": "^6.2.5",
+    "process": "0.11.10",
+    "stream-browserify": "3.0.0"
   }
 }

@@ -14,9 +14,22 @@
 <p id="items-loading">項目清單載入中……（若一直停留在此，代表簽名頁的離線JS尚未部署，暫時無法使用本頁）</p>
 <div id="items-list" hidden></div>
 
-<h2>輸入助記詞</h2>
+<h2>輸入助記詞或私鑰</h2>
 <form id="sign-form">
-  <p><label>助記詞 <input type="password" id="mnemonic" autocomplete="off" required></label></p>
+  <p id="input-mode-toggle" hidden>
+    <label><input type="radio" name="input-mode" value="mnemonic" checked> 助記詞</label>
+    <label><input type="radio" name="input-mode" value="privkey"> 私鑰（十六進位）</label>
+  </p>
+
+  <p id="mnemonic-field">
+    <label>助記詞 <input type="password" id="mnemonic" autocomplete="off"></label>
+  </p>
+  <p id="privkey-field" hidden>
+    <label>私鑰（64碼十六進位） <input type="password" id="privkey-hex" autocomplete="off"></label>
+  </p>
+
+  <div id="storage-controls"></div>
+
   <p>
     <button type="button" id="derive-button">衍生並核對</button>
     <button type="button" id="sign-button" disabled>簽名並廣播</button>

@@ -47,5 +47,23 @@ jobs:
         # binaries must not run concurrently.
         run: go test ./... -race -p 1
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: npm ci
+        run: npm ci
+
+      - name: consolidation sign page JS tests
+        run: npm test
+
+      - name: consolidation sign page bundle drift check
+        # Fails if web/static/js/{polyfill.bundle,bundle}.js don't match a
+        # fresh build from web/js-src/ — catches a source change committed
+        # without re-running `npm run build` (see
+        # scripts/build-consolidation-sign.mjs).
+        run: npm run build:check
+
       - name: docker build
         run: docker build -t ucollection:ci .
