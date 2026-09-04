@@ -32,4 +32,12 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("GET /admin/consolidation/address-book", requireSession(addressBookPageHandler(deps)))
 	mux.Handle("POST /admin/consolidation/address-book", requireFreshTOTP(addressBookSubmitHandler(deps)))
 	mux.Handle("DELETE /admin/consolidation/address-book/{id}", requireFreshTOTP(addressBookDeleteHandler(deps)))
+
+	// /admin/consolidation/batches、/admin/consolidation/fee-topup-batches、
+	// /admin/consolidation/sign — 助記詞簽名流程 (Part 3)。批次建立本身是資金操作的
+	// 起手式、簽名頁會顯示xpub並接手瀏覽器端衍生/簽名，皆比照CLAUDE.md安全鐵律9套用
+	// RequireFreshTOTP，不能只掛一般登入session。
+	mux.Handle("POST /admin/consolidation/batches", requireFreshTOTP(createConsolidationBatchHandler(deps)))
+	mux.Handle("POST /admin/consolidation/fee-topup-batches", requireFreshTOTP(createFeeTopupBatchHandler(deps)))
+	mux.Handle("GET /admin/consolidation/sign", requireFreshTOTP(signPageHandler(deps)))
 }

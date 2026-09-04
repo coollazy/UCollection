@@ -1,0 +1,158 @@
+package consolidation
+
+import (
+	"errors"
+	"log"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+// parseOrderIDs reads the repeated "order_id" checkbox values from a
+// submitted form. Returns an error if none were checked or any value isn't
+// a valid integer.
+func parseOrderIDs(r *http.Request) ([]int64, error) {
+	raw := r.Form["order_id"]
+	if len(raw) == 0 {
+		return nil, errors.New("at least one order must be selected")
+	}
+	ids := make([]int64, 0, len(raw))
+	for _, s := range raw {
+		id, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, errors.New("invalid order_id")
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// signRedirectURL builds the 303 target for the sign page, carrying the
+// batch this handler just created plus the order IDs the operator checked
+// — consolidation_batches/fee_topup_batches deliberately don't persist a
+// selected-order list (items are only created one at a time, at prepare
+// time, per 技術架構設計第10節「組交易與廣播」步驟1), so this is the only place that
+// list exists after this request. Order IDs aren't sensitive so carrying
+// them in the URL is fine; the destination/fee-source address is NOT
+// repeated here — the sign page loads that from the batch row itself
+// (authoritative DB state), not from a re-editable query string.
+func signRedirectURL(kind string, batchID int64, orderIDs []int64) string {
+	q := url.Values{}
+	q.Set("type", kind)
+	q.Set("batch_id", strconv.FormatInt(batchID, 10))
+	for _, id := range orderIDs {
+		q.Add("order_id", strconv.FormatInt(id, 10))
+	}
+	return "/admin/consolidation/sign?" + q.Encode()
+}
+
+// createConsolidationBatchHandler implements POST /admin/consolidation/
+// batches (checkboxes on consolidation_pending.html): validates the
+// destination address, opens a new consolidation_batches row, and hands off
+// to the sign page with the selected orders.
+func createConsolidationBatchHandler(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		masterWalletID, err := strconv.ParseInt(r.FormValue("master_wallet_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid master_wallet_id", http.StatusBadRequest)
+			return
+		}
+		if _, err := getMasterWallet(ctx, deps.Pool, masterWalletID); err != nil {
+			if errors.Is(err, errRowNotFound) {
+				http.Error(w, "master wallet not found", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		destinationAddress := strings.TrimSpace(r.FormValue("destination_address"))
+		orderIDs, err := parseOrderIDs(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		batchID, err := CreateConsolidationBatch(ctx, deps, masterWalletID, destinationAddress)
+		if err != nil {
+			if errors.Is(err, errInvalidAddressFormat) {
+				http.Error(w, "invalid destination address format", http.StatusBadRequest)
+				return
+			}
+			log.Printf("consolidation: create batch: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, signRedirectURL("consolidation", batchID, orderIDs), http.StatusSeeOther)
+	}
+}
+
+// createFeeTopupBatchHandler implements POST /admin/consolidation/
+// fee-topup-batches. amount_per_order is only a default the sign page
+// pre-fills per item — the amount actually broadcast is whatever value
+// each /tron-proxy/fee-topup/prepare call carries (技術架構設計第10節「可對批次內
+// 所有勾選地址套用同一數值，或個別調整」), so it isn't stored on the batch row.
+func createFeeTopupBatchHandler(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		masterWalletID, err := strconv.ParseInt(r.FormValue("master_wallet_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid master_wallet_id", http.StatusBadRequest)
+			return
+		}
+		if _, err := getMasterWallet(ctx, deps.Pool, masterWalletID); err != nil {
+			if errors.Is(err, errRowNotFound) {
+				http.Error(w, "master wallet not found", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		feeSource := strings.TrimSpace(r.FormValue("fee_source"))
+		feeSourceAddress := strings.TrimSpace(r.FormValue("fee_source_address"))
+
+		amountPerOrder, err := strconv.ParseInt(r.FormValue("amount_per_order"), 10, 64)
+		if err != nil || amountPerOrder <= 0 {
+			http.Error(w, "invalid amount_per_order", http.StatusBadRequest)
+			return
+		}
+
+		orderIDs, err := parseOrderIDs(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		batchID, err := CreateFeeTopupBatch(ctx, deps, masterWalletID, feeSource, feeSourceAddress)
+		if err != nil {
+			switch {
+			case errors.Is(err, errInvalidFeeSource):
+				http.Error(w, "fee_source must be A1 or A2", http.StatusBadRequest)
+			case errors.Is(err, errInvalidAddressFormat):
+				http.Error(w, "invalid fee_source_address format", http.StatusBadRequest)
+			default:
+				log.Printf("consolidation: create fee-topup batch: %v", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		q := url.Values{}
+		q.Set("amount_per_order", strconv.FormatInt(amountPerOrder, 10))
+		http.Redirect(w, r, signRedirectURL("fee-topup", batchID, orderIDs)+"&"+q.Encode(), http.StatusSeeOther)
+	}
+}

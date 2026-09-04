@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/coollazy/UCollection/internal/audit"
 	"github.com/coollazy/UCollection/internal/order"
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
@@ -116,6 +117,11 @@ func broadcastConsolidationHandler(deps Deps) http.HandlerFunc {
 			_ = AutoSaveIfNew(ctx, deps, item.DestinationAddress)
 		}
 
+		targetType := "consolidation_item"
+		_ = audit.Log(ctx, deps.Pool, "admin", "CONSOLIDATION", &targetType, &item.ID, map[string]any{
+			"stage": "broadcast", "status": status, "order_id": item.OrderID, "tx_hash": item.TxHash, "error_detail": errorDetail,
+		})
+
 		writeJSON(w, http.StatusOK, broadcastResponse{Status: status, TxID: item.TxHash, ErrorDetail: errorDetail})
 	}
 }
@@ -168,6 +174,11 @@ func broadcastFeeTopupHandler(deps Deps) http.HandlerFunc {
 			writeError(w, errAPIInternal)
 			return
 		}
+
+		targetType := "fee_topup_item"
+		_ = audit.Log(ctx, deps.Pool, "admin", "FEE_TOPUP", &targetType, &item.ID, map[string]any{
+			"stage": "broadcast", "status": status, "order_id": item.OrderID, "tx_hash": item.TxHash, "error_detail": errorDetail,
+		})
 
 		writeJSON(w, http.StatusOK, broadcastResponse{Status: status, TxID: item.TxHash, ErrorDetail: errorDetail})
 	}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>助記詞簽名頁 - UCollection 後台</title>
+</head>
+<body>
+<h1>手動歸集簽名</h1>
+<p><a href="/admin/consolidation">回待歸集列表</a></p>
+
+<p><strong>助記詞只在此瀏覽器分頁本機衍生私鑰與簽名，永遠不會送到伺服器。</strong>送出前系統會自動核對衍生出的xpub與本批次記錄的代收主錢包xpub是否逐字相符，以及簽名反推出的地址是否與預期地址相符，兩者皆須通過才會廣播。</p>
+
+<h2>本批次項目（送出前請先核對）</h2>
+<p id="items-loading">項目清單載入中……（若一直停留在此，代表簽名頁的離線JS尚未部署，暫時無法使用本頁）</p>
+<div id="items-list" hidden></div>
+
+<h2>輸入助記詞</h2>
+<form id="sign-form">
+  <p><label>助記詞 <input type="password" id="mnemonic" autocomplete="off" required></label></p>
+  <p>
+    <button type="button" id="derive-button">衍生並核對</button>
+    <button type="button" id="sign-button" disabled>簽名並廣播</button>
+  </p>
+</form>
+
+<div id="sign-status" role="status"></div>
+
+<!-- page-data holds pre-marshaled JSON as plain text, HTML-escaped by
+     html/template's ordinary (non-JS) auto-escaping — a <script
+     type="application/json"> here would instead land in JS-value context
+     and get JSON-double-encoded by html/template, so this is a <div>, not
+     a <script>, on purpose. sign-entry.js reads it back via
+     JSON.parse(document.getElementById('page-data').textContent). -->
+<div id="page-data" hidden>{{.PageDataJSON}}</div>
+
+<script src="/static/js/polyfill.bundle.js"></script>
+<script src="/static/js/bundle.js"></script>
+<script src="/static/js/sign-entry.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/coollazy/UCollection/internal/audit"
 	"github.com/coollazy/UCollection/internal/order"
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
@@ -101,6 +102,11 @@ func prepareConsolidationHandler(deps Deps) http.HandlerFunc {
 			return
 		}
 
+		targetType := "consolidation_item"
+		_ = audit.Log(ctx, deps.Pool, "admin", "CONSOLIDATION", &targetType, &itemID, map[string]any{
+			"stage": "prepared", "batch_id": batch.ID, "order_id": ord.ID, "amount": balance, "tx_hash": prepared.TxID,
+		})
+
 		writeJSON(w, http.StatusOK, prepareResponse{ItemID: itemID, TxID: prepared.TxID, Transaction: prepared.Transaction})
 	}
 }
@@ -175,6 +181,11 @@ func prepareFeeTopupHandler(deps Deps) http.HandlerFunc {
 			writeError(w, errAPIInternal)
 			return
 		}
+
+		targetType := "fee_topup_item"
+		_ = audit.Log(ctx, deps.Pool, "admin", "FEE_TOPUP", &targetType, &itemID, map[string]any{
+			"stage": "prepared", "batch_id": batch.ID, "order_id": ord.ID, "amount": req.Amount, "tx_hash": prepared.TxID,
+		})
 
 		writeJSON(w, http.StatusOK, prepareResponse{ItemID: itemID, TxID: prepared.TxID, Transaction: prepared.Transaction})
 	}

@@ -2,6 +2,9 @@ package consolidation
 
 import (
 	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/coollazy/UCollection/internal/store"
 )
@@ -36,4 +39,24 @@ func listMasterWallets(ctx context.Context, pool *store.Pool) ([]masterWalletOpt
 		out = append(out, w)
 	}
 	return out, rows.Err()
+}
+
+// masterWallet is the fuller shape sign.go needs: the xpub is what the
+// browser's locally-derived xpub gets compared against (技術架構設計第10節「商戶
+// 輸入助記詞後，前端本地衍生xpub，與該代收主錢包已存的master_wallets.xpub...逐字比對」)
+// — public key material, not a secret, safe to embed directly in the page.
+type masterWallet struct {
+	ID     int64
+	Xpub   string
+	Status string
+}
+
+func getMasterWallet(ctx context.Context, pool *store.Pool, id int64) (masterWallet, error) {
+	var w masterWallet
+	err := pool.QueryRow(ctx, `SELECT id, xpub, status FROM master_wallets WHERE id = $1`, id).
+		Scan(&w.ID, &w.Xpub, &w.Status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return masterWallet{}, errRowNotFound
+	}
+	return w, err
 }
