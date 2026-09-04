@@ -9,6 +9,7 @@ func TestLoad_Defaults(t *testing.T) {
 	t.Setenv(envTronGridBaseURL, "")
 	t.Setenv(envTronGridAPIKey, "")
 	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 
 	cfg, err := Load()
 	if err != nil {
@@ -35,6 +36,7 @@ func TestLoad_Overrides(t *testing.T) {
 	t.Setenv(envTronGridBaseURL, "https://shasta.trongrid.io")
 	t.Setenv(envTronGridAPIKey, "test-key")
 	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 
 	cfg, err := Load()
 	if err != nil {
@@ -60,6 +62,7 @@ func TestLoad_Overrides(t *testing.T) {
 func TestLoad_MissingDatabaseURL(t *testing.T) {
 	t.Setenv(envDatabaseURL, "")
 	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() error = nil, want error for missing DATABASE_URL")
@@ -69,8 +72,19 @@ func TestLoad_MissingDatabaseURL(t *testing.T) {
 func TestLoad_MissingUSDTContractAddress(t *testing.T) {
 	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
 	t.Setenv(envUSDTContractAddress, "")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() error = nil, want error for missing USDT_CONTRACT_ADDRESS")
+	}
+}
+
+func TestLoad_MissingPublicOrigin(t *testing.T) {
+	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
+	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envPublicOrigin, "")
+
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil, want error for missing PUBLIC_ORIGIN")
 	}
 }

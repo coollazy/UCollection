@@ -110,9 +110,17 @@ func statusIn(s Status, list []Status) bool {
 	return false
 }
 
-func sumConfirmedAmount(ctx context.Context, tx pgx.Tx, orderID int64) (int64, error) {
+// querier is satisfied by both pgx.Tx (used mid-transaction, see transition
+// above) and *store.Pool (used for standalone reads, see query.go) — lets
+// read helpers like sumConfirmedAmount be shared by both call sites instead
+// of duplicating the SQL.
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func sumConfirmedAmount(ctx context.Context, q querier, orderID int64) (int64, error) {
 	var sum int64
-	err := tx.QueryRow(ctx, `SELECT COALESCE(SUM(amount), 0) FROM incoming_transactions WHERE order_id = $1 AND confirmed = true`, orderID).Scan(&sum)
+	err := q.QueryRow(ctx, `SELECT COALESCE(SUM(amount), 0) FROM incoming_transactions WHERE order_id = $1 AND confirmed = true`, orderID).Scan(&sum)
 	return sum, err
 }
 

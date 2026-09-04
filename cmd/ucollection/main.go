@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coollazy/UCollection/internal/api"
 	"github.com/coollazy/UCollection/internal/config"
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
@@ -56,9 +57,9 @@ func run() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
-	// Route prefixes per 技術架構設計第1節 — handlers are wired up as each
-	// module is built in 階段05:
-	//   /api/v1/...      -> internal/api
+	mux.Handle("/api/v1/", api.NewMux(pool, cfg.PublicOrigin))
+	// Remaining route prefixes per 技術架構設計第1節 — handlers are wired up as
+	// each module is built in 階段05:
 	//   /admin/...       -> internal/admin
 	//   /checkout/{token} -> internal/checkout
 	//   /tron-proxy/...  -> internal/consolidation + internal/tronclient

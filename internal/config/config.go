@@ -26,6 +26,11 @@ type Config struct {
 	// USDTContractAddress is the TRC20 contract internal/scanner watches
 	// for Transfer events (see internal/scanner).
 	USDTContractAddress string
+	// PublicOrigin is the merchant-facing origin (e.g.
+	// https://pay.merchant.com), used to build checkout page URLs (see
+	// internal/api) and later by internal/auth's Origin-header CSRF check
+	// (技術架構設計第9節).
+	PublicOrigin string
 }
 
 const (
@@ -35,6 +40,7 @@ const (
 	envTronGridBaseURL     = "TRONGRID_BASE_URL"
 	envTronGridAPIKey      = "TRONGRID_API_KEY" //nolint:gosec // this is an env var name, not a credential
 	envUSDTContractAddress = "USDT_CONTRACT_ADDRESS"
+	envPublicOrigin        = "PUBLIC_ORIGIN"
 
 	defaultListenAddr      = ":8080"
 	defaultEnvironment     = "production"
@@ -51,6 +57,7 @@ func Load() (Config, error) {
 		TronGridBaseURL:     getEnvDefault(envTronGridBaseURL, defaultTronGridBaseURL),
 		TronGridAPIKey:      os.Getenv(envTronGridAPIKey),
 		USDTContractAddress: os.Getenv(envUSDTContractAddress),
+		PublicOrigin:        os.Getenv(envPublicOrigin),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -58,6 +65,9 @@ func Load() (Config, error) {
 	}
 	if cfg.USDTContractAddress == "" {
 		return Config{}, fmt.Errorf("config: %s is required", envUSDTContractAddress)
+	}
+	if cfg.PublicOrigin == "" {
+		return Config{}, fmt.Errorf("config: %s is required", envPublicOrigin)
 	}
 
 	return cfg, nil
