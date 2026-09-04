@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>選擇代收主錢包 - UCollection 後台</title></head>
+<body>
+<h1>手動歸集：選擇代收主錢包</h1>
+{{if not .Wallets}}
+  <p>尚未設定代收主錢包。</p>
+{{else}}
+  <ul>
+  {{range .Wallets}}
+    <li><a href="/admin/consolidation?master_wallet_id={{.ID}}">代收主錢包 #{{.ID}}（{{.Status}}）</a></li>
+  {{end}}
+  </ul>
+{{end}}
+</body>
+</html>

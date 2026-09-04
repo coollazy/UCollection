@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>待歸集地址列表 - UCollection 後台</title></head>
+<body>
+<h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
+<p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a></p>
+{{if not .Entries}}
+  <p>目前沒有餘額大於0且尚未歸集的地址。</p>
+{{else}}
+  <table border="1" cellpadding="4">
+    <tr><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（最小單位）</th><th>鏈上餘額（最小單位）</th></tr>
+    {{range .Entries}}
+    <tr>
+      <td>{{.OrderID}}</td>
+      <td>{{.Address}}</td>
+      <td>{{.Status}}</td>
+      <td>{{.TargetAmount}}</td>
+      <td>{{.Balance}}{{if .OverTarget}} <strong>（超出訂單原定金額）</strong>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+{{end}}
+</body>
+</html>

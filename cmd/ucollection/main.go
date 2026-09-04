@@ -67,6 +67,11 @@ func run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
 	mux.Handle("/api/v1/", api.NewMux(pool, cfg.PublicOrigin))
+	// web/static/ is copied to /web/static in the container image (see
+	// Dockerfile) and the binary runs with / as its working directory, so
+	// this relative path resolves correctly both locally (go run from the
+	// repo root) and in production.
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	auth.RegisterRoutes(mux, authDeps)
 	consolidation.RegisterRoutes(mux, consolidationDeps, authDeps)
 	// Remaining route prefixes per 技術架構設計第1節 — handlers are wired up as

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>歸集地址簿 - UCollection 後台</title></head>
+<body>
+<h1>歸集地址簿</h1>
+<p><a href="/admin/consolidation">回待歸集列表</a></p>
+{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+
+<table border="1" cellpadding="4">
+  <tr><th>地址</th><th>名稱</th><th>建立時間</th><th></th></tr>
+  {{range .Entries}}
+  <tr>
+    <td>{{.Address}}</td>
+    <td>
+      <form method="post" action="/admin/consolidation/address-book" style="display:inline">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <input type="hidden" name="address" value="{{.Address}}">
+        <input type="text" name="label" value="{{.Label}}">
+        <button type="submit">改名</button>
+      </form>
+    </td>
+    <td>{{.CreatedAt}}</td>
+    <td><button type="button" onclick="deleteAddressBookEntry({{.ID}})">刪除</button></td>
+  </tr>
+  {{end}}
+</table>
+
+<h2>新增地址</h2>
+<form method="post" action="/admin/consolidation/address-book">
+  <input type="hidden" name="id" value="">
+  <p><label>地址 <input type="text" name="address" required></label></p>
+  <p><label>名稱 <input type="text" name="label" required></label></p>
+  <p><button type="submit">新增</button></p>
+</form>
+
+<script src="/static/js/admin.js"></script>
+</body>
+</html>
