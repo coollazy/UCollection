@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>儀表板 - UCollection 後台</title></head>
+<body>
+<h1>儀表板</h1>
+<p><a href="/admin/orders">訂單列表</a></p>
+
+<h2>統計</h2>
+<table border="1" cellpadding="4">
+  <tr><th>總收款金額（最小單位）</th><th>待處理訂單數</th><th>異常訂單數</th></tr>
+  <tr>
+    <td>{{.Stats.TotalCollected}}</td>
+    <td>{{.Stats.PendingCount}}</td>
+    <td>{{.Stats.AbnormalCount}}</td>
+  </tr>
+</table>
+
+<h2>鏈上監控同步狀態</h2>
+<p>
+  上次成功同步（事件掃描）：{{if .Sync.LastSyncedAt}}{{.Sync.LastSyncedAt}}{{else}}尚未同步{{end}}<br>
+  上次成功同步（最終確定判定）：{{if .Sync.LastFinalitySyncedAt}}{{.Sync.LastFinalitySyncedAt}}{{else}}尚未同步{{end}}<br>
+  {{if gt .StuckCount 0}}
+    <strong>有 {{.StuckCount}} 筆訂單卡在守門條件、尚未能判定EXPIRED/CONFIRMATION_STALLED</strong>
+  {{else}}
+    目前沒有訂單卡在守門條件。
+  {{end}}
+</p>
+
+<h2>Webhook 通知</h2>
+<p>
+  失敗中/待重試：{{.WebhookFailing}} 筆<br>
+  待設定（尚未設定 webhook_url/secret）：{{.WebhookAwaitingConfig}} 筆
+</p>
+</body>
+</html>

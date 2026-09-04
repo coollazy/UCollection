@@ -35,15 +35,15 @@ type signItem struct {
 // xpub, IDs) — the browser still requires the operator's own mnemonic/
 // private key input to do anything with them.
 type signPageJSON struct {
-	Type                string     `json:"type"` // "consolidation" | "fee-topup"
-	BatchID             int64      `json:"batch_id"`
-	MasterWalletID      int64      `json:"master_wallet_id"`
-	Xpub                string     `json:"xpub,omitempty"`                 // consolidation only
-	DestinationAddress  string     `json:"destination_address,omitempty"`  // consolidation only
-	FeeSource           string     `json:"fee_source,omitempty"`           // fee-topup only
-	FeeSourceAddress    string     `json:"fee_source_address,omitempty"`   // fee-topup only
-	DefaultAmountPerOrder int64    `json:"default_amount_per_order,omitempty"` // fee-topup only, prefill
-	Items               []signItem `json:"items"`
+	Type                  string     `json:"type"` // "consolidation" | "fee-topup"
+	BatchID               int64      `json:"batch_id"`
+	MasterWalletID        int64      `json:"master_wallet_id"`
+	Xpub                  string     `json:"xpub,omitempty"`                     // consolidation only
+	DestinationAddress    string     `json:"destination_address,omitempty"`      // consolidation only
+	FeeSource             string     `json:"fee_source,omitempty"`               // fee-topup only
+	FeeSourceAddress      string     `json:"fee_source_address,omitempty"`       // fee-topup only
+	DefaultAmountPerOrder int64      `json:"default_amount_per_order,omitempty"` // fee-topup only, prefill
+	Items                 []signItem `json:"items"`
 }
 
 type signPageData struct {

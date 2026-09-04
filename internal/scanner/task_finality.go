@@ -76,6 +76,9 @@ func scanFinalityOnce(ctx context.Context, deps Deps) error {
 	// No safety buffer here (unlike 任務2): only_confirmed=true events are
 	// already the solidified/final state, so there's nothing to hold back
 	// for — this checkpoint is purely a pagination cursor.
+	if maxSeen < checkpoint {
+		logCheckpointAnomaly(ctx, deps.Pool, "last_finality_synced_block_timestamp", checkpoint, maxSeen)
+	}
 	_, err = deps.Pool.Exec(ctx, `
 		UPDATE scan_checkpoint
 		SET last_finality_synced_block_timestamp = GREATEST(last_finality_synced_block_timestamp, $1), last_finality_synced_at = now(), updated_at = now()
@@ -84,18 +87,12 @@ func scanFinalityOnce(ctx context.Context, deps Deps) error {
 	return err
 }
 
+// handleFinalizedEvent marks one already-recorded incoming_transactions row
+// confirmed=true and (if it actually flipped) evaluates whether the order
+// can converge to a final status.
 func handleFinalizedEvent(ctx context.Context, pool *store.Pool, ev tronclient.Event) error {
-	var orderID int64
-	err := pool.QueryRow(ctx, `
-		UPDATE incoming_transactions
-		SET confirmed = true
-		WHERE tx_hash = $1 AND log_index = $2 AND confirmed = false
-		RETURNING order_id
-	`, ev.TransactionID, ev.EventIndex).Scan(&orderID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil // not one of ours, or already marked confirmed
-	}
-	if err != nil {
+	orderID, matched, err := markEventConfirmed(ctx, pool, ev)
+	if err != nil || !matched {
 		return err
 	}
 
@@ -103,4 +100,25 @@ func handleFinalizedEvent(ctx context.Context, pool *store.Pool, ev tronclient.E
 		return err
 	}
 	return nil
+}
+
+// markEventConfirmed is the "record" half of handleFinalizedEvent, split
+// out without the evaluation call so internal/admin's reverify handler can
+// reuse it too (see mergeIncomingTransaction in task_events.go for the same
+// split on the events-task side, and reverify.go for why reverify must not
+// trigger evaluation).
+func markEventConfirmed(ctx context.Context, pool *store.Pool, ev tronclient.Event) (orderID int64, matched bool, err error) {
+	err = pool.QueryRow(ctx, `
+		UPDATE incoming_transactions
+		SET confirmed = true
+		WHERE tx_hash = $1 AND log_index = $2 AND confirmed = false
+		RETURNING order_id
+	`, ev.TransactionID, ev.EventIndex).Scan(&orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil // not one of ours, or already marked confirmed
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return orderID, true, nil
 }

@@ -24,7 +24,7 @@ var (
 	errOrderNotFound        = newAPIError(http.StatusNotFound, "ORDER_NOT_FOUND", "order not found")
 	errOrderConflict        = newAPIError(http.StatusConflict, "ORDER_CONFLICT", "merchant_order_no already exists with a different target_amount")
 	errParamsNotConfigured  = newAPIError(http.StatusInternalServerError, "PARAMS_NOT_CONFIGURED", "order parameters (validity/tolerance) have not been configured in the admin panel yet")
-	errNoActiveMasterWallet = newAPIError(http.StatusInternalServerError, "NO_ACTIVE_MASTER_WALLET", "no active master wallet configured")
+	errNoActiveMasterWallet = newAPIError(http.StatusServiceUnavailable, "NO_ACTIVE_MASTER_WALLET", "no active master wallet configured")
 	errInvalidRequest       = newAPIError(http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
 )
 

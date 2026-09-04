@@ -86,6 +86,9 @@ func scanEventsOnce(ctx context.Context, deps Deps) error {
 	// when nothing matched our own addresses this round — checkpoint won't
 	// stall waiting for our own traffic specifically.
 	newCheckpoint := maxSeen - checkpointSafetyBufferMs
+	if newCheckpoint < checkpoint {
+		logCheckpointAnomaly(ctx, deps.Pool, "last_synced_block_timestamp", checkpoint, newCheckpoint)
+	}
 	_, err = deps.Pool.Exec(ctx, `
 		UPDATE scan_checkpoint
 		SET last_synced_block_timestamp = GREATEST(last_synced_block_timestamp, $1), last_synced_at = now(), updated_at = now()
@@ -94,30 +97,13 @@ func scanEventsOnce(ctx context.Context, deps Deps) error {
 	return err
 }
 
-// handleDetectedEvent matches one Transfer event against orders.address and
-// records it. Events not addressed to any of our orders are silently
-// ignored (累加金額不分入帳來源以外的其他USDT轉帳，見技術架構設計第4節).
+// handleDetectedEvent matches one Transfer event against orders.address,
+// records it, and (if it was actually new) evaluates whether the order can
+// advance to CONFIRMING. Events not addressed to any of our orders are
+// silently ignored (累加金額不分入帳來源以外的其他USDT轉帳，見技術架構設計第4節).
 func handleDetectedEvent(ctx context.Context, pool *store.Pool, ev tronclient.Event) error {
-	var orderID int64
-	err := pool.QueryRow(ctx, `SELECT id FROM orders WHERE address = $1`, ev.To).Scan(&orderID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	var inserted bool
-	err = pool.QueryRow(ctx, `
-		INSERT INTO incoming_transactions (order_id, tx_hash, log_index, amount, confirmed, block_number)
-		VALUES ($1, $2, $3, $4, false, $5)
-		ON CONFLICT (tx_hash, log_index) DO NOTHING
-		RETURNING true
-	`, orderID, ev.TransactionID, ev.EventIndex, ev.Value, ev.BlockNumber).Scan(&inserted)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil // already recorded (pagination overlap or repeat poll) — not new, nothing to evaluate
-	}
-	if err != nil {
+	orderID, inserted, err := mergeIncomingTransaction(ctx, pool, ev)
+	if err != nil || !inserted {
 		return err
 	}
 
@@ -125,4 +111,37 @@ func handleDetectedEvent(ctx context.Context, pool *store.Pool, ev tronclient.Ev
 		return err
 	}
 	return nil
+}
+
+// mergeIncomingTransaction looks up the order owning ev.To and records the
+// event into incoming_transactions if it isn't already there, without
+// evaluating any state transition — the piece of handleDetectedEvent that
+// internal/admin's reverify handler also needs (技術架構設計第11節「手動重新檢查
+// 此地址」：沿用第4節任務2完全相同的端點與資料結構、同一去重鍵，但「本操作本身不觸發任何
+// 自動狀態轉換」, see scanner.ReverifyOrder in reverify.go). inserted is false
+// both when ev.To matches no order and when the row already existed
+// (pagination overlap or repeat poll) — either way there's nothing new to
+// evaluate.
+func mergeIncomingTransaction(ctx context.Context, pool *store.Pool, ev tronclient.Event) (orderID int64, inserted bool, err error) {
+	err = pool.QueryRow(ctx, `SELECT id FROM orders WHERE address = $1`, ev.To).Scan(&orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+
+	err = pool.QueryRow(ctx, `
+		INSERT INTO incoming_transactions (order_id, tx_hash, log_index, amount, confirmed, block_number)
+		VALUES ($1, $2, $3, $4, false, $5)
+		ON CONFLICT (tx_hash, log_index) DO NOTHING
+		RETURNING true
+	`, orderID, ev.TransactionID, ev.EventIndex, ev.Value, ev.BlockNumber).Scan(&inserted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return orderID, false, nil // already recorded
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return orderID, true, nil
 }

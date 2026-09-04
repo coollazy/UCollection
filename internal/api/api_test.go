@@ -280,8 +280,8 @@ func TestCreateOrder_NoActiveMasterWallet(t *testing.T) {
 	body := `{"merchant_order_no":"order-1","target_amount":"100000000"}`
 	req := signedRequest(t, "POST", "/api/v1/orders", body, apiKey, secret)
 	rec := do(mux, req)
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want 500", rec.Code)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
 	}
 	if got := decodeError(t, rec)["error_code"]; got != "NO_ACTIVE_MASTER_WALLET" {
 		t.Errorf("error_code = %q, want NO_ACTIVE_MASTER_WALLET", got)

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>訂單明細 #{{.Order.ID}} - UCollection 後台</title></head>
+<body>
+<h1>訂單明細 #{{.Order.ID}}</h1>
+<p><a href="/admin/orders">回訂單列表</a></p>
+{{if .Flash}}<p style="color:green">操作成功（{{.Flash}}）</p>{{end}}
+{{if .FlashError}}<p style="color:red">操作失敗（{{.FlashError}}）</p>{{end}}
+
+<h2>基本資料</h2>
+<table border="1" cellpadding="4">
+  <tr><th>merchant_order_no</th><td>{{.Order.MerchantOrderNo}}</td></tr>
+  <tr><th>public_token</th><td>{{.Order.PublicToken}}</td></tr>
+  <tr><th>代收主錢包ID</th><td>{{.Order.MasterWalletID}}</td></tr>
+  <tr><th>衍生索引</th><td>{{.Order.DerivationIndex}}</td></tr>
+  <tr><th>地址</th><td>{{.Order.Address}}</td></tr>
+  <tr><th>狀態</th><td>{{.Order.Status}}</td></tr>
+  <tr><th>目標金額（最小單位）</th><td>{{.Order.TargetAmount}}</td></tr>
+  <tr><th>容許區間（最小單位）</th><td>{{.Order.AmountLowerBound}} ~ {{.Order.AmountUpperBound}}</td></tr>
+  <tr><th>到期時間</th><td>{{.Order.ExpiresAt}}</td></tr>
+  <tr><th>歸集狀態</th><td>{{.Order.ConsolidationStatus}}</td></tr>
+  <tr><th>建立時間</th><td>{{.Order.CreatedAt}}</td></tr>
+</table>
+
+<h2>狀態變更歷史</h2>
+<table border="1" cellpadding="4">
+  <tr><th>時間</th><th>從</th><th>到</th><th>操作者</th><th>備註</th></tr>
+  {{range .Transitions}}
+  <tr><td>{{.CreatedAt}}</td><td>{{.FromStatus}}</td><td>{{.ToStatus}}</td><td>{{.ChangedBy}}</td><td>{{.Note}}</td></tr>
+  {{end}}
+</table>
+
+<h2>入帳明細</h2>
+<table border="1" cellpadding="4">
+  <tr><th>tx_hash</th><th>log_index</th><th>金額（最小單位）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
+  {{range .IncomingTransactions}}
+  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{.Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{.CreatedAt}}</td></tr>
+  {{end}}
+</table>
+
+<h2>Webhook 通知記錄</h2>
+{{range .WebhookDeliveries}}
+<p>event_type={{.EventType}} status={{.Status}} attempt_count={{.AttemptCount}}</p>
+<table border="1" cellpadding="4">
+  <tr><th>#</th><th>HTTP狀態</th><th>回應內容</th><th>時間</th><th>觸發來源</th></tr>
+  {{range .Attempts}}
+  <tr><td>{{.AttemptNo}}</td><td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}（網路層失敗）{{end}}</td><td>{{if .ResponseBody}}{{.ResponseBody}}{{end}}</td><td>{{.AttemptedAt}}</td><td>{{.TriggeredBy}}</td></tr>
+  {{end}}
+</table>
+{{else}}
+<p>無通知記錄。</p>
+{{end}}
+
+{{if .ConsolidationItems}}
+<h2>歸集記錄</h2>
+<table border="1" cellpadding="4">
+  <tr><th>批次ID</th><th>金額（最小單位）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+  {{range .ConsolidationItems}}
+  <tr><td>{{.BatchID}}</td><td>{{.Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  {{end}}
+</table>
+{{end}}
+
+{{if .FeeTopupItems}}
+<h2>TRX 手續費儲值記錄</h2>
+<table border="1" cellpadding="4">
+  <tr><th>批次ID</th><th>金額（最小單位）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+  {{range .FeeTopupItems}}
+  <tr><td>{{.BatchID}}</td><td>{{.Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  {{end}}
+</table>
+{{end}}
+
+<h2>手動重新檢查此地址</h2>
+<form method="post" action="/admin/orders/{{.Order.ID}}/reverify">
+  <button type="submit">重新查證</button>
+</form>
+
+{{if .ManualWhitelist}}
+<h2>手動改判</h2>
+<form method="post" action="/admin/orders/{{.Order.ID}}/override-status">
+  <p>目前狀態：{{.Order.Status}}</p>
+  <p>改判為：
+    {{range .ManualWhitelist}}
+    <label><input type="radio" name="to_status" value="{{.}}" required> {{.}}</label>
+    {{end}}
+  </p>
+  <p><label>改判理由（必填） <input type="text" name="note" required></label></p>
+  <p><button type="submit">送出改判</button></p>
+</form>
+{{end}}
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>訂單列表 - UCollection 後台</title></head>
+<body>
+<h1>訂單列表</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+
+<form method="get">
+  <p>
+    狀態：
+    {{range .AllStatuses}}
+      <label><input type="checkbox" name="status" value="{{.}}" {{if index $.SelectedStatus .}}checked{{end}}> {{.}}</label>
+    {{end}}
+  </p>
+  <p>
+    <label>merchant_order_no（模糊比對） <input type="text" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}"></label>
+    <label>地址（精確比對） <input type="text" name="address" value="{{.Filter.Address}}"></label>
+  </p>
+  <p>
+    <label>代收主錢包ID <input type="number" name="master_wallet_id"></label>
+    <label>建立時間從 <input type="date" name="created_from"></label>
+    <label>到 <input type="date" name="created_to"></label>
+  </p>
+  <p><button type="submit">查詢</button></p>
+</form>
+
+<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+
+<table border="1" cellpadding="4">
+  <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th>目標金額（最小單位）</th><th>建立時間</th></tr>
+  {{range .Orders}}
+  <tr>
+    <td><a href="/admin/orders/{{.ID}}">{{.ID}}</a></td>
+    <td>{{.MerchantOrderNo}}</td>
+    <td>{{.Address}}</td>
+    <td>{{.Status}}</td>
+    <td>{{.TargetAmount}}</td>
+    <td>{{.CreatedAt}}</td>
+  </tr>
+  {{end}}
+</table>
+
+<form method="get">
+  <input type="hidden" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}">
+  <input type="hidden" name="address" value="{{.Filter.Address}}">
+  {{range .Filter.Statuses}}<input type="hidden" name="status" value="{{.}}">{{end}}
+  {{if .HasPrev}}<button type="submit" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
+  {{if .HasNext}}<button type="submit" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
+</form>
+
+<h2>手動建單</h2>
+<form method="post" action="/admin/orders">
+  <p><label>訂單編號（自動產生，可自行覆蓋） <input type="text" name="merchant_order_no" value="{{.NewOrderMerchantOrderNo}}"></label></p>
+  <p><label>目標金額（USDT，最多6位小數） <input type="text" name="target_amount" required></label></p>
+  <p><button type="submit">建立訂單</button></p>
+</form>
+</body>
+</html>

@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coollazy/UCollection/internal/admin"
 	"github.com/coollazy/UCollection/internal/api"
 	"github.com/coollazy/UCollection/internal/auth"
 	"github.com/coollazy/UCollection/internal/config"
@@ -63,6 +64,7 @@ func run() error {
 
 	authDeps := auth.Deps{Pool: pool, PublicOrigin: cfg.PublicOrigin, CookieSecure: cfg.CookieSecure}
 	consolidationDeps := consolidation.Deps{Pool: pool, TronClient: tronClient, USDTContractAddress: cfg.USDTContractAddress}
+	adminDeps := admin.Deps{Pool: pool, TronClient: tronClient, USDTContractAddress: cfg.USDTContractAddress}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(pool))
@@ -74,14 +76,8 @@ func run() error {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	auth.RegisterRoutes(mux, authDeps)
 	consolidation.RegisterRoutes(mux, consolidationDeps, authDeps)
-	// Remaining route prefixes per 技術架構設計第1節 — handlers are wired up as
-	// each module is built in 階段05 (internal/auth/internal/consolidation
-	// register exact patterns above rather than owning a whole prefix, so
-	// internal/admin can register its own /admin/... routes on this same
-	// mux later without conflict):
-	//   /admin/...       -> internal/admin (dashboard, orders, settings, ...;
-	//                       internal/consolidation's own /admin/consolidation/...
-	//                       HTML pages are Part 2/3, not yet built)
+	admin.RegisterRoutes(mux, adminDeps, authDeps)
+	// Remaining route prefix per 技術架構設計第1節, not yet built:
 	//   /checkout/{token} -> internal/checkout
 
 	srv := &http.Server{
