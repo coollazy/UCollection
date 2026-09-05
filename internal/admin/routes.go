@@ -58,4 +58,16 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	// RequireSession即可。
 	mux.Handle("GET /admin/params", requireSession(paramsPageHandler(deps)))
 	mux.Handle("POST /admin/params", requireSession(updateParamsHandler(deps)))
+
+	// 通知歷史查詢與手動重發 (Part 3)：重發已存在、已審過的通知不產生新的業務判斷，
+	// 技術架構設計路由表本節四條全部列RequireSession，不新增RequireFreshTOTP路由。
+	mux.Handle("GET /admin/notifications", requireSession(notificationsListHandler(deps)))
+	mux.Handle("POST /admin/notifications/{id}/resend", requireSession(resendNotificationHandler(deps)))
+
+	// 稽核日誌查詢 (Part 3)：純查詢，RequireSession即可。
+	mux.Handle("GET /admin/audit-logs", requireSession(auditLogsListHandler(deps)))
+
+	// CSV/Excel交易明細匯出 (Part 3)：內容為金額/狀態等營運資訊，不含私鑰/密碼等機密
+	// 材料，權限等級同訂單列表本身，RequireSession即可。
+	mux.Handle("GET /admin/export/orders", requireSession(exportOrdersHandler(deps)))
 }

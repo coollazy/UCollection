@@ -3,7 +3,6 @@ package admin
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/coollazy/UCollection/internal/order"
 )
@@ -38,31 +37,9 @@ func ordersListHandler(deps Deps) http.HandlerFunc {
 			page = p
 		}
 
-		f := order.ListFilter{
-			MerchantOrderNo: q.Get("merchant_order_no"),
-			Address:         q.Get("address"),
-			Offset:          (page - 1) * ordersPageSize,
-			Limit:           ordersPageSize,
-		}
-		for _, s := range q["status"] {
-			f.Statuses = append(f.Statuses, order.Status(s))
-		}
-		if v := q.Get("master_wallet_id"); v != "" {
-			if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-				f.MasterWalletID = &id
-			}
-		}
-		if v := q.Get("created_from"); v != "" {
-			if t, err := time.Parse("2006-01-02", v); err == nil {
-				f.CreatedFrom = &t
-			}
-		}
-		if v := q.Get("created_to"); v != "" {
-			if t, err := time.Parse("2006-01-02", v); err == nil {
-				t = t.Add(24 * time.Hour)
-				f.CreatedTo = &t
-			}
-		}
+		f := parseOrderListFilter(r)
+		f.Offset = (page - 1) * ordersPageSize
+		f.Limit = ordersPageSize
 
 		orders, total, err := order.ListOrders(r.Context(), deps.Pool, f)
 		if err != nil {

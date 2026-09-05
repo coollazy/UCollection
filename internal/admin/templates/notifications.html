@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>通知歷史 - UCollection 後台</title></head>
+<body>
+<h1>通知歷史</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+{{if .Flash}}<p style="color:green">{{.Flash}}</p>{{end}}
+{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+
+<form method="get">
+  <p>
+    <label>訂單ID <input type="number" name="order_id" value="{{if .Filter.OrderID}}{{.Filter.OrderID}}{{end}}"></label>
+    <label>event_type <input type="text" name="event_type" value="{{.Filter.EventType}}"></label>
+    <label>狀態
+      <select name="status">
+        <option value="">（全部）</option>
+        {{range $s := $.AllStatuses}}
+        <option value="{{$s}}" {{if eq $.Filter.Status $s}}selected{{end}}>{{$s}}</option>
+        {{end}}
+      </select>
+    </label>
+  </p>
+  <p><button type="submit">查詢</button></p>
+</form>
+
+<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+
+<table border="1" cellpadding="4">
+  <tr><th>ID</th><th>訂單ID</th><th>event_type</th><th>狀態</th><th>嘗試次數</th><th>下次重試</th><th>建立時間</th><th>逐次嘗試</th><th></th></tr>
+  {{range .Deliveries}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td><a href="/admin/orders/{{.OrderID}}">{{.OrderID}}</a></td>
+    <td>{{.EventType}}</td>
+    <td>{{.Status}}</td>
+    <td>{{.AttemptCount}}</td>
+    <td>{{if .NextRetryAt}}{{.NextRetryAt}}{{end}}</td>
+    <td>{{.CreatedAt}}</td>
+    <td>
+      {{range .Attempts}}
+      #{{.AttemptNo}} {{.TriggeredBy}} {{if .HTTPStatus}}HTTP{{.HTTPStatus}}{{else}}(連線失敗){{end}} {{.AttemptedAt}}<br>
+      {{end}}
+    </td>
+    <td>
+      <form method="post" action="/admin/notifications/{{.ID}}/resend">
+        <button type="submit">手動重發</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+</table>
+
+<p>
+  {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
+  {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
+</p>
+</body>
+</html>

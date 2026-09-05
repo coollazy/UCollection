@@ -22,6 +22,7 @@ type Attempt struct {
 // 供客服對照）」) and notification-history page (第11節「通知歷史查詢」).
 type DeliveryWithAttempts struct {
 	ID           int64
+	OrderID      int64
 	EventID      string
 	EventType    string
 	Status       string
@@ -35,7 +36,7 @@ type DeliveryWithAttempts struct {
 // first) with its attempts (oldest first).
 func ListForOrder(ctx context.Context, pool *store.Pool, orderID int64) ([]DeliveryWithAttempts, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT id, event_id, event_type, status, attempt_count, next_retry_at, created_at
+		SELECT id, order_id, event_id, event_type, status, attempt_count, next_retry_at, created_at
 		FROM webhook_deliveries
 		WHERE order_id = $1
 		ORDER BY id DESC
@@ -47,7 +48,7 @@ func ListForOrder(ctx context.Context, pool *store.Pool, orderID int64) ([]Deliv
 	var deliveries []DeliveryWithAttempts
 	for rows.Next() {
 		var d DeliveryWithAttempts
-		if err := rows.Scan(&d.ID, &d.EventID, &d.EventType, &d.Status, &d.AttemptCount, &d.NextRetryAt, &d.CreatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.OrderID, &d.EventID, &d.EventType, &d.Status, &d.AttemptCount, &d.NextRetryAt, &d.CreatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}

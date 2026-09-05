@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>稽核日誌 - UCollection 後台</title></head>
+<body>
+<h1>稽核日誌</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+
+<form method="get">
+  <p>
+    <label>actor <input type="text" name="actor" value="{{.Filter.Actor}}"></label>
+    <label>action_type <input type="text" name="action_type" value="{{.Filter.ActionType}}"></label>
+    <label>target_type <input type="text" name="target_type" value="{{.Filter.TargetType}}"></label>
+  </p>
+  <p>
+    <label>建立時間從 <input type="date" name="created_from"></label>
+    <label>到 <input type="date" name="created_to"></label>
+  </p>
+  <p><button type="submit">查詢</button></p>
+</form>
+
+<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+
+<table border="1" cellpadding="4">
+  <tr><th>ID</th><th>actor</th><th>action_type</th><th>target_type</th><th>target_id</th><th>detail</th><th>建立時間</th></tr>
+  {{range .Entries}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td>{{.Actor}}</td>
+    <td>{{.ActionType}}</td>
+    <td>{{if .TargetType}}{{.TargetType}}{{end}}</td>
+    <td>{{if .TargetID}}{{.TargetID}}{{end}}</td>
+    <td>{{range $k, $v := .Detail}}{{$k}}={{$v}} {{end}}</td>
+    <td>{{.CreatedAt}}</td>
+  </tr>
+  {{end}}
+</table>
+
+<p>
+  {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
+  {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
+</p>
+</body>
+</html>
