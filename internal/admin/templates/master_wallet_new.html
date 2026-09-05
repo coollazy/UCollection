@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>新增代收主錢包 - UCollection 後台</title>
+</head>
+<body>
+<h1>新增代收主錢包</h1>
+<p><a href="/admin/master-wallets">回代收主錢包列表</a></p>
+
+<p><strong>助記詞只在此瀏覽器分頁本機運算，永遠不會送到伺服器；只有算出來的xpub（公鑰）會送出。</strong>新增後，目前使用中的代收主錢包將轉為已停用。</p>
+
+<p id="mode-loading">載入中……（若一直停留在此，代表本頁的離線JS尚未部署，暫時無法使用）</p>
+
+<div id="mode-select" hidden>
+  <p>
+    <label><input type="radio" name="wallet-mode" value="existing" checked> 輸入既有助記詞</label>
+    <label><input type="radio" name="wallet-mode" value="new"> 產生新錢包</label>
+  </p>
+</div>
+
+<div id="existing-mode" hidden>
+  <p style="color:red">請確認此助記詞尚未在其他地方作為代收主錢包使用，衍生前請再次確認來源可信。</p>
+  <p><label>助記詞 <input type="password" id="existing-mnemonic" autocomplete="off"></label></p>
+  <p><button type="button" id="existing-derive-button">衍生xpub</button></p>
+</div>
+
+<div id="new-mode" hidden>
+  <p><button type="button" id="generate-button">產生新助記詞</button></p>
+  <div id="generated-mnemonic-box" hidden>
+    <p style="color:red">請將以下助記詞完整抄錄並妥善保存，這是唯一一次顯示的機會。</p>
+    <p id="generated-mnemonic-text"></p>
+    <p>請依提示重新輸入以下位置的單字以確認備份正確：</p>
+    <div id="backup-verify-fields"></div>
+    <p><button type="button" id="verify-backup-button">確認備份</button></p>
+  </div>
+</div>
+
+<div id="confirm-box" hidden>
+  <p>算出的xpub末4碼：<strong id="confirm-xpub-tail"></strong></p>
+  <p><button type="button" id="submit-button">送出</button></p>
+</div>
+
+<div id="wallet-status" role="status"></div>
+
+<script src="/static/js/polyfill.bundle.js"></script>
+<script src="/static/js/masterwallet.bundle.js"></script>
+</body>
+</html>

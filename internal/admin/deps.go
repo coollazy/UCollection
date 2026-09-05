@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"net/http"
+
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
 	"github.com/coollazy/UCollection/internal/tronclient"
@@ -11,6 +13,10 @@ type Deps struct {
 	Pool                *store.Pool
 	TronClient          *tronclient.Client
 	USDTContractAddress string
+	// HTTPClient is passed straight through to webhook.SendTestPing (POST
+	// /admin/webhook-config/test) — nil is fine, SendTestPing falls back to
+	// its own default client the same way webhook.Resend does.
+	HTTPClient *http.Client
 }
 
 // scannerDeps adapts Deps to scanner.Deps for calling scanner.ReverifyOrder

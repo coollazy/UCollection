@@ -50,6 +50,18 @@ export function deriveConsolidationKey(mnemonic, index) {
   };
 }
 
+// deriveAccountXpub derives only the account-level xpub (m/44'/195'/0'),
+// for /admin/master-wallets/new (技術架構設計第11節「新增」：「本頁僅需衍生到xpub
+// 層級...不需要@noble/curves等簽名相關函式庫」). Deliberately narrower than
+// deriveConsolidationKey: this page never needs a child private key at all,
+// so it never derives one — no reason to materialize key material in
+// memory that this page has no use for.
+export function deriveAccountXpub(mnemonic) {
+  const seed = seedFromValidatedMnemonic(mnemonic);
+  const account = HDKey.fromMasterSeed(seed).derive(ACCOUNT_PATH);
+  return account.publicExtendedKey;
+}
+
 // deriveFeeTopupKeyFromMnemonic is deriveConsolidationKey's counterpart for
 // the A1/A2 TRX fee-topup flow (技術架構設計第10節「TRX 手續費」): the source
 // address is 商戶自行指定的任意地址, unrelated to the master wallet's HD tree,

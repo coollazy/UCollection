@@ -1,12 +1,15 @@
-// Builds the two script files consolidation_sign.html loads, in the order
-// it loads them: polyfill.bundle.js (Buffer/process globals — must finish
-// running before bundle.js's module graph evaluates, see
-// web/js-src/polyfill-entry.js) then bundle.js (derive/sign/selfcheck/
-// storage/page, entered via sign-entry.js). Same esbuild version and
-// --platform=browser --bundle approach as 驗證結論-04/05/06/08; the alias
-// list below is this project's own dependency tree resolved from scratch
-// against esbuild's actual "could not resolve" errors, not copied from the
-// verification docs' older library versions.
+// Builds the script files consolidation_sign.html and master_wallet_new.html
+// load: polyfill.bundle.js (Buffer/process globals — must finish running
+// before bundle.js/masterwallet.bundle.js's module graph evaluates, see
+// web/js-src/polyfill-entry.js), bundle.js (derive/sign/selfcheck/storage/
+// page, entered via sign-entry.js), and masterwallet.bundle.js (derive's
+// xpub-only path + bip39 mnemonic generation, entered via
+// masterwallet-entry.js — 技術架構設計第11節「新增」: 共用同一套依賴/工具鏈，不需要
+// @noble/curves等簽名相關函式庫，但仍走同一條esbuild管線，不另開一個獨立js專案).
+// Same esbuild version and --platform=browser --bundle approach as
+// 驗證結論-04/05/06/08; the alias list below is this project's own dependency
+// tree resolved from scratch against esbuild's actual "could not resolve"
+// errors, not copied from the verification docs' older library versions.
 //
 // Usage: node scripts/build-consolidation-sign.mjs [--check]
 //   --check: build into a temp dir and diff against the committed output
@@ -39,6 +42,7 @@ const NODE_BUILTIN_ALIASES = {
 const targets = [
   { entry: 'web/js-src/polyfill-entry.js', out: 'polyfill.bundle.js' },
   { entry: 'web/js-src/sign-entry.js', out: 'bundle.js' },
+  { entry: 'web/js-src/masterwallet-entry.js', out: 'masterwallet.bundle.js' },
 ];
 
 async function buildInto(destDir) {

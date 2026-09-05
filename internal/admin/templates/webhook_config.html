@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>Webhook 端點設定 - UCollection 後台</title></head>
+<body>
+<h1>Webhook 端點設定</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+{{if .FlashSuccess}}<p style="color:green">{{.FlashSuccess}}</p>{{end}}
+{{if .GeneratedSecret}}
+<p style="color:red"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong></p>
+<p>Secret: <code>{{.GeneratedSecret}}</code></p>
+{{end}}
+
+<h2>URL</h2>
+<form method="post" action="/admin/webhook-config">
+  <p><label>Webhook URL <input type="text" name="webhook_url" value="{{.URL}}" placeholder="https://..."></label></p>
+  <p><button type="submit">更新 URL</button></p>
+</form>
+
+<h2>Secret</h2>
+<p>目前狀態：{{if .SecretConfigured}}已設定{{else}}未設定{{end}}</p>
+<form method="post" action="/admin/webhook-config/secret">
+  <p>
+    <label><input type="radio" name="mode" value="generate" checked> 系統產生</label>
+    <label><input type="radio" name="mode" value="manual"> 手動輸入 <input type="text" name="secret"></label>
+  </p>
+  <p><button type="submit" onclick="return confirm('輪替secret沒有過渡期，請確認已準備好同步更新驗簽端設定。');">更新 Secret</button></p>
+</form>
+
+<h2>測試</h2>
+<form method="post" action="/admin/webhook-config/test">
+  <p><button type="submit">送出測試（TEST_PING）</button></p>
+</form>
+{{if .TestResult}}
+<div>
+  {{if .TestResult.Err}}
+    <p style="color:red">{{.TestResult.Err}}</p>
+  {{else}}
+    <p>HTTP狀態碼：{{.TestResult.HTTPStatus}}</p>
+    <p>回應內容：<code>{{.TestResult.Body}}</code></p>
+  {{end}}
+</div>
+{{end}}
+</body>
+</html>

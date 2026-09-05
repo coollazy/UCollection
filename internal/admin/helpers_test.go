@@ -47,18 +47,38 @@ func resetDB(t *testing.T, pool *store.Pool) {
 	_, err := pool.Exec(context.Background(), `
 		TRUNCATE master_wallets, orders, order_state_transitions, incoming_transactions,
 			webhook_deliveries, webhook_delivery_attempts, consolidation_batches, consolidation_items,
-			fee_topup_batches, fee_topup_items, admin_sessions, audit_logs
+			fee_topup_batches, fee_topup_items, admin_sessions, audit_logs, api_keys
 		RESTART IDENTITY CASCADE
 	`)
 	if err != nil {
 		t.Fatalf("reset db: %v", err)
 	}
 	if _, err := pool.Exec(context.Background(), `
-		UPDATE system_params SET validity_seconds = 900, amount_tolerance_percent = 1.5, confirmation_stall_timeout_seconds = 900
+		UPDATE system_params SET validity_seconds = 900, amount_tolerance_percent = 1.5, confirmation_stall_timeout_seconds = 900,
+			webhook_url = NULL, webhook_secret = NULL
 		WHERE id = 1
 	`); err != nil {
 		t.Fatalf("seed system_params: %v", err)
 	}
+}
+
+// newAPIKey inserts one api_keys row directly (bypassing the regenerate
+// handler) so tests can set up an existing key to assert gets revoked.
+// key_hash uses the exact hex(sha256(key)) scheme internal/api/auth.go
+// validates against (see api_keys.go's regenerateAPIKey, which computes it
+// the same way).
+func newAPIKey(t *testing.T, pool *store.Pool, key, secret string) int64 {
+	t.Helper()
+	sum := sha256.Sum256([]byte(key))
+	keyHash := hex.EncodeToString(sum[:])
+	var id int64
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO api_keys (key_hash, secret) VALUES ($1, $2) RETURNING id
+	`, keyHash, secret).Scan(&id)
+	if err != nil {
+		t.Fatalf("insert api_keys: %v", err)
+	}
+	return id
 }
 
 func newActiveSessionCookie(t *testing.T, pool *store.Pool) *http.Cookie {

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>代收主錢包 - UCollection 後台</title></head>
+<body>
+<h1>代收主錢包</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+
+<p><a href="/admin/master-wallets/new">新增代收主錢包</a></p>
+
+<table border="1" cellpadding="4">
+  <tr><th>ID</th><th>xpub</th><th>狀態</th><th>已分配索引數</th><th>建立時間</th><th></th></tr>
+  {{range .Wallets}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td>{{.XpubTail}}</td>
+    <td>
+      {{if eq .Status "active"}}使用中{{else}}已停用{{end}}
+      {{if eq .Status "inactive"}}<br><small>已停用不代表資金不安全，僅表示不再分配新地址</small>{{end}}
+    </td>
+    <td>{{.LastDerivedIndex}}</td>
+    <td>{{.CreatedAt}}</td>
+    <td>
+      {{if eq .Status "inactive"}}
+      <form method="post" action="/admin/master-wallets/{{.ID}}/reactivate" onsubmit="return confirm('確定要將此代收主錢包恢復使用中嗎？目前使用中的代收主錢包將轉為已停用。');">
+        <button type="submit">恢復使用中</button>
+      </form>
+      {{end}}
+    </td>
+  </tr>
+  {{end}}
+</table>
+</body>
+</html>

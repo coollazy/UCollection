@@ -5,7 +5,7 @@
 // implementation, not just "the JS test is wrong".
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveConsolidationKey, deriveFeeTopupKeyFromMnemonic, feeTopupKeyFromPrivateKeyHex } from './derive.js';
+import { deriveConsolidationKey, deriveAccountXpub, deriveFeeTopupKeyFromMnemonic, feeTopupKeyFromPrivateKeyHex } from './derive.js';
 
 const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const WANT_XPUB = 'xpub6D1AabNHCupeiLM65ZR9UStMhJ1vCpyV4XbZdyhMZBiJXALQtmn9p42VTQckoHVn8WNqS7dqnJokZHAHcHGoaQgmv8D45oNUKx6DZMNZBCd';
@@ -25,6 +25,14 @@ test('deriveConsolidationKey matches known Go/驗證結論-01 vectors for index 
     assert.equal(got.address, wantAddress, `address mismatch at index ${index}`);
     assert.equal(got.privateKey.length, 32);
   }
+});
+
+test('deriveAccountXpub matches known Go/驗證結論-01 xpub, same as deriveConsolidationKey', () => {
+  assert.equal(deriveAccountXpub(TEST_MNEMONIC), WANT_XPUB);
+});
+
+test('deriveAccountXpub rejects a malformed mnemonic', () => {
+  assert.throws(() => deriveAccountXpub('not a real bip39 mnemonic phrase'), /助記詞格式不正確/);
 });
 
 test('deriveConsolidationKey rejects a malformed mnemonic', () => {

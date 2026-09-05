@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>API Key 管理 - UCollection 後台</title></head>
+<body>
+<h1>API Key 管理</h1>
+<p><a href="/admin/dashboard">回儀表板</a></p>
+{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+
+<form method="post" action="/admin/api-keys/regenerate" onsubmit="return confirm('重新產生會讓既有API串接立即失效，確定要繼續嗎？');">
+  <button type="submit">重新產生 API Key</button>
+</form>
+
+<table border="1" cellpadding="4">
+  <tr><th>ID</th><th>建立時間</th><th>狀態</th></tr>
+  {{range .Keys}}
+  <tr>
+    <td>{{.ID}}</td>
+    <td>{{.CreatedAt}}</td>
+    <td>{{if .Revoked}}已作廢{{else}}使用中{{end}}</td>
+  </tr>
+  {{end}}
+</table>
+</body>
+</html>
