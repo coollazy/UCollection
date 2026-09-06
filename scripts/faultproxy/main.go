@@ -66,11 +66,11 @@ func main() {
 
 	ctrl := &controller{current: modePassthrough, slowDelay: 5 * time.Second}
 
-	proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
-	originalDirector := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		originalDirector(r)
-		r.Host = upstreamURL.Host
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(upstreamURL)
+			r.Out.Host = upstreamURL.Host
+		},
 	}
 
 	mux := http.NewServeMux()
@@ -88,20 +88,20 @@ func main() {
 				return
 			}
 			_ = conn.Close()
-			log.Printf("[disconnect] %s %s -> connection closed", r.Method, r.URL.Path)
+			log.Printf("[disconnect] %q %q -> connection closed", r.Method, r.URL.Path) //nolint:gosec // local test-only tool logging its own inbound request line for console debugging, not a real log-injection boundary
 		case modeTimeout:
-			log.Printf("[timeout] %s %s -> hanging until client gives up", r.Method, r.URL.Path)
+			log.Printf("[timeout] %q %q -> hanging until client gives up", r.Method, r.URL.Path) //nolint:gosec // same as above
 			<-r.Context().Done()
 		case modeHTTP5xx:
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte(`{"error":"stage06 faultproxy: simulated 503"}`))
-			log.Printf("[http5xx] %s %s -> 503", r.Method, r.URL.Path)
+			log.Printf("[http5xx] %q %q -> 503", r.Method, r.URL.Path) //nolint:gosec // same as above
 		case modeHTTP429:
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, _ = w.Write([]byte(`{"error":"stage06 faultproxy: simulated 429"}`))
-			log.Printf("[http429] %s %s -> 429", r.Method, r.URL.Path)
+			log.Printf("[http429] %q %q -> 429", r.Method, r.URL.Path) //nolint:gosec // local test-only tool logging its own inbound request line for console debugging, not a real log-injection boundary
 		case modeSlow:
-			log.Printf("[slow] %s %s -> delaying %s then forwarding", r.Method, r.URL.Path, slowDelay)
+			log.Printf("[slow] %q %q -> delaying %s then forwarding", r.Method, r.URL.Path, slowDelay) //nolint:gosec // same as above
 			select {
 			case <-time.After(slowDelay):
 				proxy.ServeHTTP(w, r)
@@ -112,7 +112,7 @@ func main() {
 		}
 	})
 
-	server := &http.Server{Addr: *listenAddr, Handler: mux}
+	server := &http.Server{Addr: *listenAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/fault-mode", func(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +146,10 @@ func main() {
 			slowDelay = time.Duration(secs) * time.Second
 		}
 		ctrl.set(m, slowDelay)
-		log.Printf("fault mode switched to %q (slow_delay=%s)", m, slowDelay)
-		_, _ = w.Write([]byte(`{"ok":true,"mode":"` + string(m) + `"}`))
+		log.Printf("fault mode switched to %q (slow_delay=%s)", m, slowDelay) //nolint:gosec // m is already constrained to the fixed enum validated above
+		_, _ = w.Write([]byte(`{"ok":true,"mode":"` + string(m) + `"}`)) //nolint:gosec // m is already constrained to the fixed enum validated in the switch above
 	})
-	adminServer := &http.Server{Addr: *adminAddr, Handler: adminMux}
+	adminServer := &http.Server{Addr: *adminAddr, Handler: adminMux, ReadHeaderTimeout: 10 * time.Second}
 
 	go func() {
 		log.Printf("faultproxy: proxying %s -> upstream %s", *listenAddr, upstreamURL)

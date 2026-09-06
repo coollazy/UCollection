@@ -320,6 +320,59 @@ func TestScanFinalityOnce_MarksConfirmedAndCompletesOrder(t *testing.T) {
 	}
 }
 
+// TestScanFinalityOnce_LateConfirmationAfterTerminalLogsAudit covers 階段06
+// 整合試跑情境E: an order already COMPLETED (an earlier payment already
+// finalized it) receives a second confirmed event. order.EvaluateFinal
+// correctly rejects it (ErrInvalidTransition — order is no longer
+// CONFIRMING), and this must not be silently swallowed: the mark still
+// lands, the order status is left untouched, and an ILLEGAL_STATE_TRANSITION
+// audit entry records the discrepancy for the merchant to review.
+func TestScanFinalityOnce_LateConfirmationAfterTerminalLogsAudit(t *testing.T) {
+	pool := testPool(t)
+	resetDB(t, pool)
+	ctx := context.Background()
+	walletID := newMasterWallet(t, pool, testXpub)
+	o := testOrder(t, ctx, pool, "final-late", walletID, 100)
+	forceStatus(t, pool, o.ID, order.StatusCompleted)
+	insertUnconfirmedTx(t, pool, o.ID, "tx-late-extra", 0, 20)
+
+	nowMs := time.Now().UnixMilli()
+	seedCheckpoint(t, pool, nowMs-120_000, nowMs-120_000)
+	toHex := toHexAddress(t, o.Address)
+	srv := mockTronGridOnce(t, eventsResponseJSON([]mockEvent{
+		{TxID: "tx-late-extra", EventIndex: 0, BlockNumber: 1000, BlockTimestamp: nowMs - 10_000, FromHex: arbitrarySenderHex, ToHex: toHex, Value: "20"},
+	}, ""))
+
+	deps := Deps{Pool: pool, TronClient: tronclient.NewClient(srv.URL, ""), ContractAddress: testContract}
+	if err := scanFinalityOnce(ctx, deps); err != nil {
+		t.Fatalf("scanFinalityOnce() error = %v, want nil (late confirmation must not fail the scan cycle)", err)
+	}
+
+	var confirmed bool
+	if err := pool.QueryRow(ctx, `SELECT confirmed FROM incoming_transactions WHERE order_id = $1 AND tx_hash = $2`, o.ID, "tx-late-extra").Scan(&confirmed); err != nil {
+		t.Fatalf("load confirmed: %v", err)
+	}
+	if !confirmed {
+		t.Error("incoming_transactions.confirmed = false, want true (mark still happens even though evaluation is rejected)")
+	}
+	if got := loadOrderStatus(t, pool, o.ID); got != order.StatusCompleted {
+		t.Fatalf("order status = %s, want unchanged COMPLETED (must not auto-correct a terminal order)", got)
+	}
+
+	var actionType, actor string
+	var targetID int64
+	err := pool.QueryRow(ctx, `
+		SELECT action_type, actor, target_id FROM audit_logs
+		WHERE action_type = 'ILLEGAL_STATE_TRANSITION' AND target_id = $1
+	`, o.ID).Scan(&actionType, &actor, &targetID)
+	if err != nil {
+		t.Fatalf("expected an ILLEGAL_STATE_TRANSITION audit entry for order %d, query error: %v", o.ID, err)
+	}
+	if actor != "system" {
+		t.Errorf("audit actor = %q, want %q", actor, "system")
+	}
+}
+
 func TestSweepLifecycleOnce_ExpiryGatedByCheckpoint(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)

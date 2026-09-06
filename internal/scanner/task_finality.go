@@ -96,10 +96,23 @@ func handleFinalizedEvent(ctx context.Context, pool *store.Pool, ev tronclient.E
 		return err
 	}
 
-	if err := order.EvaluateFinal(ctx, pool, orderID); err != nil && !errors.Is(err, order.ErrTransitionNotDue) {
-		return err
+	err = order.EvaluateFinal(ctx, pool, orderID)
+	if err == nil || errors.Is(err, order.ErrTransitionNotDue) {
+		return nil
 	}
-	return nil
+	if errors.Is(err, order.ErrInvalidTransition) {
+		// 階段06整合試跑情境E：訂單已經不在CONFIRMING（通常是被更早到帳的另一筆事件
+		// 搶先finalize掉了）。mark已經正確落地(confirmed=true)，只是這次判定被白名單
+		// 擋下——記錄成稽核事件而不是靜默吞掉，讓後台看得到真實金額已經跟訂單記錄不
+		// 一致，之後由商戶自行查證處理（不在此自動更動訂單狀態，理由見logLateFinalityConfirmation註解）。
+		var currentStatus string
+		if statusErr := pool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&currentStatus); statusErr != nil {
+			currentStatus = "unknown"
+		}
+		logLateFinalityConfirmation(ctx, pool, orderID, ev, currentStatus)
+		return nil
+	}
+	return err
 }
 
 // markEventConfirmed is the "record" half of handleFinalizedEvent, split

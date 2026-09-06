@@ -7,6 +7,7 @@ import (
 
 	"github.com/coollazy/UCollection/internal/audit"
 	"github.com/coollazy/UCollection/internal/store"
+	"github.com/coollazy/UCollection/internal/tronclient"
 )
 
 // logCheckpointAnomaly records a checkpoint-regression attempt to audit_logs
@@ -23,6 +24,41 @@ func logCheckpointAnomaly(ctx context.Context, pool *store.Pool, column string, 
 	})
 	if err != nil {
 		log.Printf("scanner: log checkpoint anomaly: %v", err)
+	}
+}
+
+// logLateFinalityConfirmation records a confirmed on-chain event that
+// arrived after its order had already left CONFIRMING (e.g. a second
+// payment confirms after the first already finalized the order as
+// COMPLETED) — 階段06整合試跑情境E發現：這種事件過去被order.EvaluateFinal的白名單
+// 靜默拒絕，只寫進app log，商戶端完全看不到訂單真實收到的金額已經跟系統記錄的不一致。
+// Reuses the ILLEGAL_STATE_TRANSITION audit action internal/admin's manual
+// override path already writes (見orders_override.go) so the existing
+// /admin/audit-logs page surfaces this without any filter changes — actor
+// is "system" here instead of "admin" to distinguish the two sources.
+//
+// This only makes the discrepancy visible; it deliberately does not change
+// the order's status (CLAUDE.md業務鐵律5：系統不主動判斷改判方向，一律由商戶人工查證後
+// 決定 — 且COMPLETED目前不在internal/order.manualWhitelist的允許來源狀態內，是否要
+// 開放屬於獨立、更大的決策，不在這次修正範圍).
+func logLateFinalityConfirmation(ctx context.Context, pool *store.Pool, orderID int64, ev tronclient.Event, currentStatus string) {
+	var confirmedTotal int64
+	if err := pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0) FROM incoming_transactions WHERE order_id = $1 AND confirmed = true
+	`, orderID).Scan(&confirmedTotal); err != nil {
+		log.Printf("scanner: log late finality confirmation: sum confirmed for order %d: %v", orderID, err)
+	}
+
+	targetType := "order"
+	err := audit.Log(ctx, pool, "system", "ILLEGAL_STATE_TRANSITION", &targetType, &orderID, map[string]any{
+		"reason":              "late_finality_confirmation_after_terminal",
+		"tx_hash":             ev.TransactionID,
+		"event_amount":        ev.Value,
+		"order_status":        currentStatus,
+		"confirmed_total_now": confirmedTotal,
+	})
+	if err != nil {
+		log.Printf("scanner: log late finality confirmation: %v", err)
 	}
 }
 
