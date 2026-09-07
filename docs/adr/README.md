@@ -24,3 +24,4 @@
 | [0012](0012-TRX手續費A1A2機制.md) | TRX 手續費 A1/A2：不動用 index 0，改採商戶自訂地址 | Accepted |
 | [0013](0013-IndexedDB本機加密儲存參數.md) | IndexedDB 本機加密儲存參數（PBKDF2 600,000 次） | Accepted |
 | [0014](0014-手動改判疊加TOTP.md) | 後台手動改判疊加 RequireFreshTOTP | Accepted |
+| [0015](0015-已歸集地址晚到入帳可見度.md) | 已歸集地址晚到入帳改為可見度標示（推翻v0.24舊決策） | Accepted |

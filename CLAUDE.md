@@ -53,7 +53,7 @@ web/static/js/            — 離線打包的助記詞衍生/簽名JS bundle
 4. **訂單不提供取消/作廢功能**，僅能經有效期到期自然轉 EXPIRED。
 5. **系統不主動判斷改判方向**（CONFIRMATION_STALLED/EXPIRED 是否該改判為 COMPLETED/OVERPAID），一律由商戶人工查證後決定。手動改判路徑刻意不重查金額子查詢——這是設計，不是漏洞。
 6. **訂單曾經歷過的狀態不因後續改判覆蓋或刪除**，`order_state_transitions` 是 append-only 的完整歷史。
-7. **已歸集地址（`consolidation_status='consolidated'`）永久不再監控**，之後若該地址又收到新入帳，系統不主動偵測/通知——這是需求書已定案的已知限制，不要「順手」加上重新監控當作改善。
+7. **已歸集地址（`consolidation_status='consolidated'`）收到的晚到入帳，系統不會自動處置**（不自動轉出、不自動改判訂單狀態、不自動重新排入待歸集列表），但會比照COMPLETED訂單晚到confirmed金額的既有機制，寫入`ILLEGAL_STATE_TRANSITION`稽核紀錄並反映在dashboard異常訂單數，供商戶人工查證——這是[ADR-0015](docs/adr/0015-已歸集地址晚到入帳可見度.md)推翻先前「系統不主動偵測/通知」決策後的新規則，不要再往回改成完全不可見；但也不要新增自動轉出/自動改判等主動處置機制，那牽動更大範圍的資金安全決策，需要另外討論。
 
 ## 何時要停下來問人類，不要自己決定
 
