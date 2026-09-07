@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"html"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -41,15 +42,12 @@ func TestSignPageHandler_Consolidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
-
 	path := "/admin/consolidation/sign?" + url.Values{
 		"type":     {"consolidation"},
 		"batch_id": {strconv.FormatInt(batchID, 10)},
 		"order_id": {strconv.FormatInt(ord.ID, 10)},
 	}.Encode()
-	resp := doGet(t, srv, cookie, path)
+	resp := callSignPageHandler(t, deps, path)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", resp.StatusCode, readBody(t, resp))
 	}
@@ -82,16 +80,13 @@ func TestSignPageHandler_FeeTopup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFeeTopupBatch() error = %v", err)
 	}
-	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
-
 	path := "/admin/consolidation/sign?" + url.Values{
 		"type":             {"fee-topup"},
 		"batch_id":         {strconv.FormatInt(batchID, 10)},
 		"order_id":         {strconv.FormatInt(ord.ID, 10)},
 		"amount_per_order": {"1000000"},
 	}.Encode()
-	resp := doGet(t, srv, cookie, path)
+	resp := callSignPageHandler(t, deps, path)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", resp.StatusCode, readBody(t, resp))
 	}
@@ -118,10 +113,8 @@ func TestSignPageHandler_InvalidType(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
-	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
 
-	resp := doGet(t, srv, cookie, "/admin/consolidation/sign?type=bogus&batch_id=1")
+	resp := callSignPageHandler(t, deps, "/admin/consolidation/sign?type=bogus&batch_id=1")
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
 	}
@@ -131,10 +124,8 @@ func TestSignPageHandler_BatchNotFound(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
-	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
 
-	resp := doGet(t, srv, cookie, "/admin/consolidation/sign?type=consolidation&batch_id=999999")
+	resp := callSignPageHandler(t, deps, "/admin/consolidation/sign?type=consolidation&batch_id=999999")
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404; body = %s", resp.StatusCode, readBody(t, resp))
 	}
@@ -157,15 +148,12 @@ func TestSignPageHandler_SkipsOrderFromDifferentMasterWallet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
-
 	path := "/admin/consolidation/sign?" + url.Values{
 		"type":     {"consolidation"},
 		"batch_id": {strconv.FormatInt(batchID, 10)},
 		"order_id": {strconv.FormatInt(ownOrder.ID, 10), strconv.FormatInt(foreignOrder.ID, 10)},
 	}.Encode()
-	resp := doGet(t, srv, cookie, path)
+	resp := callSignPageHandler(t, deps, path)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", resp.StatusCode, readBody(t, resp))
 	}
@@ -176,6 +164,9 @@ func TestSignPageHandler_SkipsOrderFromDifferentMasterWallet(t *testing.T) {
 	}
 }
 
+// TestSignPageHandler_RequireFreshTOTP ADR-0016: GET-protected pages have
+// no body to carry a code in, so every single visit — not just a stale
+// one — bounces through /admin/reverify-totp first.
 func TestSignPageHandler_RequireFreshTOTP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
@@ -186,11 +177,27 @@ func TestSignPageHandler_RequireFreshTOTP(t *testing.T) {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
 	srv := newTestMux(t, deps)
-	cookie := newStaleActiveSessionCookie(t, pool)
+	cookie := newActiveSessionCookie(t, pool)
 
 	path := "/admin/consolidation/sign?type=consolidation&batch_id=" + strconv.FormatInt(batchID, 10)
 	resp := doGet(t, srv, cookie, path)
 	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/admin/reverify-totp") {
 		t.Fatalf("status=%d location=%q, want 303 to reverify", resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+// callSignPageHandler exercises signPageHandler directly rather than
+// through the full mux: ADR-0016 makes RequireTOTPCode unconditionally
+// redirect every GET to /admin/reverify-totp first (no freshness grace
+// window), so a request routed through the real mux never reaches this
+// handler without a full login+TOTP-code round trip. The handler's own
+// page-data/validation/CSP-header logic is unaffected by what gates it, so
+// testing it in isolation is both simpler and still exercises the real
+// behavior under test.
+func callSignPageHandler(t *testing.T, deps Deps, path string) *http.Response {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	signPageHandler(deps).ServeHTTP(rec, req)
+	return rec.Result()
 }

@@ -101,14 +101,34 @@ function onSubmit() {
     setStatus('尚未算出xpub，無法送出');
     return;
   }
+  const totpCode = document.getElementById('totp-code-input').value.trim();
+  if (!totpCode) {
+    setStatus('請輸入TOTP驗證碼');
+    return;
+  }
+  if (!window.confirm('確定要送出這組代收主錢包嗎？若目前已有使用中的代收主錢包，將自動轉為已停用，之後所有新訂單將改用這一組衍生收款地址。')) {
+    return;
+  }
   setStatus('送出中……');
   fetch('/admin/master-wallets', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Totp-Code': totpCode },
     body: JSON.stringify({ xpub: pendingXpub }),
   })
-    .then((resp) => resp.json().then((data) => ({ status: resp.status, data })))
-    .then(({ status, data }) => {
+    .then((resp) => {
+      // A redirected response means RequireTOTPCode intercepted the
+      // request before it ever reached the handler (missing/invalid/
+      // replayed code) — its body is the returnTo page's HTML, not JSON.
+      // See auth.RequireTOTPCode's doc comment.
+      if (resp.redirected) {
+        setStatus('TOTP驗證碼有誤或已過期，請重新輸入後再送出一次');
+        return null;
+      }
+      return resp.json().then((data) => ({ status: resp.status, data }));
+    })
+    .then((result) => {
+      if (!result) return;
+      const { status, data } = result;
       if (status === 200 && data.ok) {
         window.location.href = data.redirect || '/admin/master-wallets';
         return;

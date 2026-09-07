@@ -4,11 +4,13 @@
 <body>
 <h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
 <p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a></p>
+{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 {{if not .Entries}}
   <p>目前沒有餘額大於0且尚未歸集的地址。</p>
 {{else}}
   <form method="post">
   <input type="hidden" name="master_wallet_id" value="{{.MasterWalletID}}">
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <table border="1" cellpadding="4">
     <tr><th></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（最小單位）</th><th>鏈上餘額（最小單位）</th></tr>
     {{range .Entries}}

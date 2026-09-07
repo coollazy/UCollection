@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
@@ -136,9 +137,9 @@ func TestUpdateToleranceHandler_Success(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"amount_tolerance_percent": {"2.5"}}
+	form := url.Values{"amount_tolerance_percent": {"2.5"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/params/tolerance", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -176,14 +177,14 @@ func TestUpdateToleranceHandler_InvalidPercent(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	var toleranceBefore float64
 	if err := pool.QueryRow(context.Background(), `SELECT amount_tolerance_percent FROM system_params WHERE id = 1`).Scan(&toleranceBefore); err != nil {
 		t.Fatalf("query seeded tolerance: %v", err)
 	}
 
-	form := url.Values{"amount_tolerance_percent": {"-1"}}
+	form := url.Values{"amount_tolerance_percent": {"-1"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/params/tolerance", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -211,16 +212,15 @@ func TestUpdateToleranceHandler_InvalidPercent(t *testing.T) {
 // TestUpdateToleranceHandler_RequireFreshTOTP 階段07全系統審查發現：
 // amount_tolerance_percent一旦被調高，會讓之後新訂單的短付更容易被系統自動判定
 // 為COMPLETED，攻擊者僅取得session cookie（未取得2FA裝置）即可誤導商戶財務判斷
-// ——因此這條路由拆出來疊加RequireFreshTOTP，這裡驗證TOTP不新鮮時會被擋下。
+// ——因此這條路由疊加RequireTOTPCode；ADR-0016改為每次送出都要求驗證碼（不再是
+// 「距上次驗證是否超過15分鐘」），這裡驗證缺漏totp_code時會被擋下、導回原頁面
+// （不是導向/admin/reverify-totp，那是給GET頁面用的）。
 func TestUpdateToleranceHandler_RequireFreshTOTP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
 	cookie := newActiveSessionCookie(t, pool)
-	if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_totp_verified_at = now() - interval '1 hour'`); err != nil {
-		t.Fatalf("stale totp: %v", err)
-	}
 
 	var toleranceBefore float64
 	if err := pool.QueryRow(context.Background(), `SELECT amount_tolerance_percent FROM system_params WHERE id = 1`).Scan(&toleranceBefore); err != nil {
@@ -241,10 +241,14 @@ func TestUpdateToleranceHandler_RequireFreshTOTP(t *testing.T) {
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("status = %d, want 303 (stale TOTP)", resp.StatusCode)
+		t.Fatalf("status = %d, want 303 (missing totp_code)", resp.StatusCode)
 	}
-	if got := resp.Header.Get("Location"); !strings.Contains(got, "/admin/reverify-totp") {
-		t.Errorf("Location = %q, want redirect to /admin/reverify-totp", got)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if loc.Path != "/admin/params" || loc.Query().Get("totp_error") != "missing" {
+		t.Errorf("Location = %q, want /admin/params?totp_error=missing", resp.Header.Get("Location"))
 	}
 
 	var tolerance float64

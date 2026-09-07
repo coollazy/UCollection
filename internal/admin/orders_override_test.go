@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coollazy/UCollection/internal/order"
 	"github.com/coollazy/UCollection/internal/tronclient"
@@ -23,9 +24,9 @@ func TestOverrideStatusHandler_Success(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool) // last_totp_verified_at = now(), fresh
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"to_status": {"COMPLETED"}, "note": {"人工查證已收到款項"}}
+	form := url.Values{"to_status": {"COMPLETED"}, "note": {"人工查證已收到款項"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/orders/%d/override-status", o.ID), strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -85,9 +86,9 @@ func TestOverrideStatusHandler_IllegalTransitionIsAudited(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"to_status": {"COMPLETED"}, "note": {"嘗試繞過"}}
+	form := url.Values{"to_status": {"COMPLETED"}, "note": {"嘗試繞過"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/orders/%d/override-status", o.ID), strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -136,10 +137,8 @@ func TestOverrideStatusHandler_RequiresFreshTOTP(t *testing.T) {
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
 	cookie := newActiveSessionCookie(t, pool)
-	// Force last_totp_verified_at stale (older than the 15-minute window).
-	if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_totp_verified_at = now() - interval '1 hour'`); err != nil {
-		t.Fatalf("stale totp: %v", err)
-	}
+	// No admin_account/totp_secret set up at all — ADR-0016: every POST
+	// requires its own totp_code, checked fresh every time.
 
 	form := url.Values{"to_status": {"COMPLETED"}, "note": {"test"}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/orders/%d/override-status", o.ID), strings.NewReader(form.Encode()))
@@ -157,8 +156,12 @@ func TestOverrideStatusHandler_RequiresFreshTOTP(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303", resp.StatusCode)
 	}
-	if got := resp.Header.Get("Location"); !strings.Contains(got, "/admin/reverify-totp") {
-		t.Errorf("Location = %q, want redirect to /admin/reverify-totp (stale TOTP)", got)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if loc.Path != fmt.Sprintf("/admin/orders/%d", o.ID) || loc.Query().Get("totp_error") != "missing" {
+		t.Errorf("Location = %q, want /admin/orders/%d?totp_error=missing (missing totp_code)", resp.Header.Get("Location"), o.ID)
 	}
 
 	got, err := order.GetByID(context.Background(), pool, o.ID)

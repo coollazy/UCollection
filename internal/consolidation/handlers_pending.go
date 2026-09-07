@@ -13,6 +13,7 @@ type pendingWalletsPageData struct {
 type pendingListPageData struct {
 	MasterWalletID int64
 	Entries        []PendingEntry
+	Notice         string
 }
 
 // pendingListPageHandler implements GET /admin/consolidation (技術架構設計第
@@ -73,6 +74,6 @@ func pendingListPageHandler(deps Deps) http.HandlerFunc {
 			return
 		}
 
-		render(w, http.StatusOK, "consolidation_pending.html", pendingListPageData{MasterWalletID: masterWalletID, Entries: entries})
+		render(w, http.StatusOK, "consolidation_pending.html", pendingListPageData{MasterWalletID: masterWalletID, Entries: entries, Notice: totpReverifiedNotice(r)})
 	}
 }

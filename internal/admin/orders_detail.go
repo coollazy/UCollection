@@ -20,6 +20,7 @@ type orderDetailPageData struct {
 	ManualWhitelist      []order.Status
 	Flash                string
 	FlashError           string
+	TOTPReverifiedNotice string
 }
 
 // orderDetailHandler implements GET /admin/orders/{id} (技術架構設計第11節「訂單
@@ -80,6 +81,7 @@ func orderDetailHandler(deps Deps) http.HandlerFunc {
 			ManualWhitelist:      manualTargetsFor(ord.Status),
 			Flash:                r.URL.Query().Get("flash"),
 			FlashError:           r.URL.Query().Get("flash_error"),
+			TOTPReverifiedNotice: totpReverifiedNotice(r),
 		})
 	}
 }

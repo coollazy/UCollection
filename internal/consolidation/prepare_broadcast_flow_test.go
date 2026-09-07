@@ -26,14 +26,15 @@ func TestConsolidationPrepareAndBroadcast_Success(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
 
-	prepResp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
+	prepResp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
 	if prepResp.StatusCode != http.StatusOK {
 		t.Fatalf("prepare status = %d", prepResp.StatusCode)
 	}
@@ -42,7 +43,7 @@ func TestConsolidationPrepareAndBroadcast_Success(t *testing.T) {
 		t.Fatalf("prep.TxID = %q", prep.TxID)
 	}
 
-	broadcastResp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", map[string]any{
+	broadcastResp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-success-1","raw_data_hex":"aa","visible":true,"signature":["deadbeef"]}`),
 	})
@@ -83,14 +84,15 @@ func TestConsolidationPrepare_BatchOrderMismatch(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletB, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400 for a batch/order master-wallet mismatch", resp.StatusCode)
 	}
@@ -109,14 +111,15 @@ func TestConsolidationPrepare_AlreadyConsolidatedRejected(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("status = %d, want 409 for an already-consolidated order", resp.StatusCode)
 	}
@@ -133,14 +136,15 @@ func TestConsolidationPrepare_NoBalanceRejected(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400 for zero balance", resp.StatusCode)
 	}
@@ -159,23 +163,36 @@ func TestConsolidationBroadcast_ItemNotPendingRejected(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
+	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
 
 	body := map[string]any{"item_id": prep.ItemID, "transaction": json.RawMessage(`{"txID":"tx-double","signature":["ab"]}`)}
-	first := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", body)
+	first := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/broadcast", body)
 	if first.StatusCode != http.StatusOK {
 		t.Fatalf("first broadcast status = %d", first.StatusCode)
 	}
 
-	second := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", body)
-	if second.StatusCode != http.StatusConflict {
-		t.Fatalf("second broadcast (same item) status = %d, want 409 — an item must never be broadcast twice", second.StatusCode)
+	// The second attempt is dispatched to broadcastConsolidationHandler
+	// directly rather than through another postJSON+code() round trip:
+	// TOTP's ±1 period (30s) skew window only has two distinct
+	// non-replayed codes available within a single fast-running test (see
+	// totpCodeSequence's doc comment) — a third real step-up verification
+	// this soon isn't obtainable without an actual 30s+ sleep. The
+	// item-not-pending rejection this asserts is broadcastConsolidationHandler's
+	// own logic, unrelated to what gates it, so exercising it directly is
+	// both simpler and still covers the real behavior under test.
+	secondRec := httptest.NewRecorder()
+	secondBody, _ := json.Marshal(body)
+	secondReq := httptest.NewRequest(http.MethodPost, "/tron-proxy/consolidation/broadcast", strings.NewReader(string(secondBody)))
+	broadcastConsolidationHandler(deps).ServeHTTP(secondRec, secondReq)
+	if secondRec.Code != http.StatusConflict {
+		t.Fatalf("second broadcast (same item) status = %d, want 409 — an item must never be broadcast twice", secondRec.Code)
 	}
 }
 
@@ -191,15 +208,16 @@ func TestConsolidationBroadcast_TxIDMismatchRejected(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
+	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", map[string]any{
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-DIFFERENT-from-prepared","signature":["ab"]}`),
 	})
@@ -233,15 +251,16 @@ func TestConsolidationBroadcast_ExplicitRejectionMarksFailed(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
+	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", map[string]any{
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-rejected","signature":["ab"]}`),
 	})
@@ -284,15 +303,16 @@ func TestConsolidationBroadcast_NetworkFailureLeavesBroadcasting(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
+	prep := decodeJSON[prepareResponse](t, postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
 
-	resp := postJSON(t, srv, cookie, "/tron-proxy/consolidation/broadcast", map[string]any{
+	resp := postJSON(t, srv, cookie, code(), "/tron-proxy/consolidation/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-network-fail","signature":["ab"]}`),
 	})
@@ -356,15 +376,16 @@ func TestConsolidationBroadcast_TrueNetworkFailureLeavesBroadcasting(t *testing.
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient(srv.URL, ""), USDTContractAddress: testUSDTContract}
 	testSrv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
 	if err != nil {
 		t.Fatalf("CreateConsolidationBatch() error = %v", err)
 	}
-	prep := decodeJSON[prepareResponse](t, postJSON(t, testSrv, cookie, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
+	prep := decodeJSON[prepareResponse](t, postJSON(t, testSrv, cookie, code(), "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID}))
 
-	resp := postJSON(t, testSrv, cookie, "/tron-proxy/consolidation/broadcast", map[string]any{
+	resp := postJSON(t, testSrv, cookie, code(), "/tron-proxy/consolidation/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-true-network-fail","signature":["ab"]}`),
 	})
@@ -405,20 +426,21 @@ func TestFeeTopupPrepareAndBroadcast_Success(t *testing.T) {
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	code := totpCodeSequence(t, secret)
 
 	batchID, err := CreateFeeTopupBatch(context.Background(), deps, walletID, "A1", testSourceAddress)
 	if err != nil {
 		t.Fatalf("CreateFeeTopupBatch() error = %v", err)
 	}
 
-	prepResp := postJSON(t, srv, cookie, "/tron-proxy/fee-topup/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID, "amount": 5_000000})
+	prepResp := postJSON(t, srv, cookie, code(), "/tron-proxy/fee-topup/prepare", map[string]any{"batch_id": batchID, "order_id": o.ID, "amount": 5_000000})
 	if prepResp.StatusCode != http.StatusOK {
 		t.Fatalf("prepare status = %d", prepResp.StatusCode)
 	}
 	prep := decodeJSON[prepareResponse](t, prepResp)
 
-	broadcastResp := postJSON(t, srv, cookie, "/tron-proxy/fee-topup/broadcast", map[string]any{
+	broadcastResp := postJSON(t, srv, cookie, code(), "/tron-proxy/fee-topup/broadcast", map[string]any{
 		"item_id":     prep.ItemID,
 		"transaction": json.RawMessage(`{"txID":"tx-fee-1","signature":["ab"]}`),
 	})
@@ -450,7 +472,7 @@ func TestConsolidationRoutes_RequireSession(t *testing.T) {
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
 
-	resp := postJSON(t, srv, nil, "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": 1, "order_id": 1})
+	resp := postJSON(t, srv, nil, "", "/tron-proxy/consolidation/prepare", map[string]any{"batch_id": 1, "order_id": 1})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303 redirect to login when no session cookie is present", resp.StatusCode)
 	}

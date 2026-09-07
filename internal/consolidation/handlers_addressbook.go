@@ -11,6 +11,26 @@ import (
 type addressBookPageData struct {
 	Entries []AddressBookEntry
 	Error   string
+	Notice  string
+}
+
+// totpReverifiedNotice mirrors internal/admin's helper of the same name
+// (故意重複一份小helper而非跨package共用，比照本專案既有慣例). Tells the operator
+// why they landed back on this GET page instead of their original POST/
+// DELETE completing — see auth.RequireTOTPCode's doc comment.
+func totpReverifiedNotice(r *http.Request) string {
+	switch r.URL.Query().Get("totp_error") {
+	case "missing":
+		return "此操作需要輸入TOTP驗證碼，請重新填寫並送出"
+	case "invalid":
+		return "TOTP驗證碼錯誤，請重新填寫並送出"
+	case "replay":
+		return "此驗證碼已被使用，請等待新一組驗證碼後再試"
+	}
+	if r.URL.Query().Get("totp_reverified") != "1" {
+		return ""
+	}
+	return "TOTP已重新驗證，請重新填寫並送出剛才的操作"
 }
 
 // addressBookErrorMessage maps a short "?error=" redirect code to its
@@ -58,6 +78,7 @@ func addressBookPageHandler(deps Deps) http.HandlerFunc {
 		render(w, http.StatusOK, "consolidation_address_book.html", addressBookPageData{
 			Entries: entries,
 			Error:   addressBookErrorMessage(r.URL.Query().Get("error")),
+			Notice:  totpReverifiedNotice(r),
 		})
 	}
 }

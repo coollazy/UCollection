@@ -10,12 +10,56 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 
 	"github.com/coollazy/UCollection/internal/auth"
 	"github.com/coollazy/UCollection/internal/order"
 	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
 )
+
+// totpTestOpts mirrors internal/auth's own totpValidateOpts (period 30s,
+// skew ±1, 6-digit SHA1) — duplicated here rather than exported from auth,
+// same small-helper-per-package convention this project already uses (見
+// internal/consolidation對CSP常數的處理).
+var totpTestOpts = totp.ValidateOpts{
+	Period:    30,
+	Skew:      1,
+	Digits:    otp.DigitsSix,
+	Algorithm: otp.AlgorithmSHA1,
+}
+
+func totpCodeAt(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	code, err := totp.GenerateCodeCustom(secret, at, totpTestOpts)
+	if err != nil {
+		t.Fatalf("GenerateCodeCustom() error = %v", err)
+	}
+	return code
+}
+
+// newActiveSessionWithTOTP is newActiveSessionCookie plus an admin_account
+// row carrying a known TOTP secret — RequireTOTPCode (ADR-0016: every
+// high-risk POST/DELETE verifies a code fresh in the same request) needs a
+// real account+secret to check the request's totp_code against, unlike the
+// old freshness-only check which only read the session's timestamp.
+func newActiveSessionWithTOTP(t *testing.T, pool *store.Pool) (cookie *http.Cookie, secret string) {
+	t.Helper()
+	key, err := totp.Generate(totp.GenerateOpts{Issuer: "UCollection", AccountName: "admin"})
+	if err != nil {
+		t.Fatalf("totp.Generate() error = %v", err)
+	}
+	secret = key.Secret()
+	if _, err := pool.Exec(context.Background(), `
+		INSERT INTO admin_account (username, password_hash, totp_secret) VALUES ('admin', 'unused', $1)
+	`, secret); err != nil {
+		t.Fatalf("insert admin_account: %v", err)
+	}
+	return newActiveSessionCookie(t, pool), secret
+}
 
 const testXpub = "xpub6D1AabNHCupeiLM65ZR9UStMhJ1vCpyV4XbZdyhMZBiJXALQtmn9p42VTQckoHVn8WNqS7dqnJokZHAHcHGoaQgmv8D45oNUKx6DZMNZBCd"
 
@@ -48,7 +92,7 @@ func resetDB(t *testing.T, pool *store.Pool) {
 	_, err := pool.Exec(context.Background(), `
 		TRUNCATE master_wallets, orders, order_state_transitions, incoming_transactions,
 			webhook_deliveries, webhook_delivery_attempts, consolidation_batches, consolidation_items,
-			fee_topup_batches, fee_topup_items, admin_sessions, audit_logs, api_keys
+			fee_topup_batches, fee_topup_items, admin_sessions, audit_logs, api_keys, admin_account
 		RESTART IDENTITY CASCADE
 	`)
 	if err != nil {

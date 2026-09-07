@@ -67746,12 +67746,28 @@
       setStatus("\u5C1A\u672A\u7B97\u51FAxpub\uFF0C\u7121\u6CD5\u9001\u51FA");
       return;
     }
+    const totpCode = document.getElementById("totp-code-input").value.trim();
+    if (!totpCode) {
+      setStatus("\u8ACB\u8F38\u5165TOTP\u9A57\u8B49\u78BC");
+      return;
+    }
+    if (!window.confirm("\u78BA\u5B9A\u8981\u9001\u51FA\u9019\u7D44\u4EE3\u6536\u4E3B\u9322\u5305\u55CE\uFF1F\u82E5\u76EE\u524D\u5DF2\u6709\u4F7F\u7528\u4E2D\u7684\u4EE3\u6536\u4E3B\u9322\u5305\uFF0C\u5C07\u81EA\u52D5\u8F49\u70BA\u5DF2\u505C\u7528\uFF0C\u4E4B\u5F8C\u6240\u6709\u65B0\u8A02\u55AE\u5C07\u6539\u7528\u9019\u4E00\u7D44\u884D\u751F\u6536\u6B3E\u5730\u5740\u3002")) {
+      return;
+    }
     setStatus("\u9001\u51FA\u4E2D\u2026\u2026");
     fetch("/admin/master-wallets", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Totp-Code": totpCode },
       body: JSON.stringify({ xpub: pendingXpub })
-    }).then((resp) => resp.json().then((data) => ({ status: resp.status, data }))).then(({ status, data }) => {
+    }).then((resp) => {
+      if (resp.redirected) {
+        setStatus("TOTP\u9A57\u8B49\u78BC\u6709\u8AA4\u6216\u5DF2\u904E\u671F\uFF0C\u8ACB\u91CD\u65B0\u8F38\u5165\u5F8C\u518D\u9001\u51FA\u4E00\u6B21");
+        return null;
+      }
+      return resp.json().then((data) => ({ status: resp.status, data }));
+    }).then((result) => {
+      if (!result) return;
+      const { status, data } = result;
       if (status === 200 && data.ok) {
         window.location.href = data.redirect || "/admin/master-wallets";
         return;

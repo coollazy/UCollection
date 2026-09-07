@@ -70650,12 +70650,17 @@
   function storageKeyFor(page) {
     return page.type === "consolidation" ? `consolidation:${page.master_wallet_id}` : `fee-topup:${page.fee_source_address}`;
   }
-  async function postJSON(url, body) {
+  async function postJSON(url, body, totpCode) {
+    const headers = { "Content-Type": "application/json" };
+    if (totpCode) headers["X-Totp-Code"] = totpCode;
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body)
     });
+    if (resp.redirected) {
+      throw new Error("TOTP\u9A57\u8B49\u78BC\u6709\u8AA4\u6216\u5DF2\u904E\u671F\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u9801\u9762\u3001\u91CD\u65B0\u8F38\u5165\u9A57\u8B49\u78BC\u5F8C\u518D\u8A66\u4E00\u6B21");
+    }
     const data = await resp.json().catch(() => null);
     if (!resp.ok) {
       const message = data && typeof data.message === "string" ? data.message : `HTTP ${resp.status}`;
@@ -70681,8 +70686,15 @@
       storageControls: document.getElementById("storage-controls"),
       deriveButton: document.getElementById("derive-button"),
       signButton: document.getElementById("sign-button"),
-      signStatus: document.getElementById("sign-status")
+      signStatus: document.getElementById("sign-status"),
+      totpCodeInput: document.getElementById("totp-code-input")
     };
+    let pendingTOTPCode = null;
+    function consumeTOTPCode() {
+      const code = pendingTOTPCode;
+      pendingTOTPCode = null;
+      return code;
+    }
     const derivedKeys = /* @__PURE__ */ new Map();
     let amountInput = null;
     function currentInputMode() {
@@ -70871,7 +70883,7 @@
       itemStatusEl(item.order_id).textContent = "\u6E96\u5099\u4EA4\u6613\u4E2D...";
       const prepareBody = page.type === "consolidation" ? { batch_id: page.batch_id, order_id: item.order_id } : { batch_id: page.batch_id, order_id: item.order_id, amount: Number(amountInput.value) };
       const prepareUrl = page.type === "consolidation" ? "/tron-proxy/consolidation/prepare" : "/tron-proxy/fee-topup/prepare";
-      const prepared = await postJSON(prepareUrl, prepareBody);
+      const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
       itemStatusEl(item.order_id).textContent = "\u7C3D\u540D\u4E2D...";
       const { signedTransaction, txIDMatched } = signTransaction(prepared.transaction, privateKey);
       if (!txIDMatched) {
@@ -70883,10 +70895,16 @@
       }
       itemStatusEl(item.order_id).textContent = "\u5EE3\u64AD\u4E2D...";
       const broadcastUrl = page.type === "consolidation" ? "/tron-proxy/consolidation/broadcast" : "/tron-proxy/fee-topup/broadcast";
-      const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction });
+      const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction }, consumeTOTPCode());
       itemStatusEl(item.order_id).textContent = statusLabel(result.status, result.error_detail);
     }
     async function handleSignAndBroadcast() {
+      const totpCode = els.totpCodeInput.value.trim();
+      if (!totpCode) {
+        els.signStatus.textContent = "\u8ACB\u8F38\u5165TOTP\u9A57\u8B49\u78BC";
+        return;
+      }
+      pendingTOTPCode = totpCode;
       els.signButton.disabled = true;
       els.deriveButton.disabled = true;
       for (const item of page.items) {

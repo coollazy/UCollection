@@ -47,7 +47,8 @@ func resetDB(t *testing.T, pool *store.Pool) {
 	_, err := pool.Exec(context.Background(), `
 		TRUNCATE consolidation_address_book, consolidation_items, consolidation_batches,
 			fee_topup_items, fee_topup_batches, master_wallets, orders,
-			order_state_transitions, incoming_transactions, webhook_deliveries, audit_logs
+			order_state_transitions, incoming_transactions, webhook_deliveries, audit_logs,
+			admin_sessions, admin_account
 		RESTART IDENTITY CASCADE
 	`)
 	if err != nil {

@@ -29,6 +29,15 @@ func newIPLimiter() *ipLimiter {
 	return &ipLimiter{hits: make(map[string][]time.Time)}
 }
 
+// sharedIPLimiter is the one per-IP failure budget every TOTP-verifying
+// endpoint draws from — login, totp-setup, totp, /admin/reverify-totp
+// (all wired up in RegisterRoutes), and RequireTOTPCode's inline
+// verification (used by internal/admin and internal/consolidation, which
+// have no other way to reach the limiter RegisterRoutes constructs). 技術
+// 架構設計第9節「登入限流」第1層 is explicitly one shared 15-minute budget
+// across every rate-limited endpoint, not one budget per endpoint.
+var sharedIPLimiter = newIPLimiter()
+
 // allow reports whether ip is currently under its 15-minute failure quota.
 func (l *ipLimiter) allow(ip string) bool {
 	l.mu.Lock()

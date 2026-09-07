@@ -5,6 +5,7 @@
 <h1>代收主錢包</h1>
 <p><a href="/admin/dashboard">回儀表板</a></p>
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 
 <p><a href="/admin/master-wallets/new">新增代收主錢包</a></p>
 
@@ -23,6 +24,7 @@
     <td>
       {{if eq .Status "inactive"}}
       <form method="post" action="/admin/master-wallets/{{.ID}}/reactivate" onsubmit="return confirm('確定要將此代收主錢包恢復使用中嗎？目前使用中的代收主錢包將轉為已停用。');">
+        <label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label>
         <button type="submit">恢復使用中</button>
       </form>
       {{end}}

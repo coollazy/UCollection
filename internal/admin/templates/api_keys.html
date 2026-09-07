@@ -5,8 +5,10 @@
 <h1>API Key 管理</h1>
 <p><a href="/admin/dashboard">回儀表板</a></p>
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 
 <form method="post" action="/admin/api-keys/regenerate" onsubmit="return confirm('重新產生會讓既有API串接立即失效，確定要繼續嗎？');">
+  <label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label>
   <button type="submit">重新產生 API Key</button>
 </form>
 

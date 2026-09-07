@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,12 +26,14 @@ func TestRegenerateAPIKeyHandler_Success(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/api-keys/regenerate", nil)
+	form := url.Values{"totp_code": {totpCodeAt(t, secret, time.Now())}}
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/api-keys/regenerate", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -78,12 +81,14 @@ func TestRegenerateAPIKeyHandler_NewKeyValidatesAgainstAPIPackage(t *testing.T) 
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	adminSrv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	req, err := http.NewRequest(http.MethodPost, adminSrv.URL+"/admin/api-keys/regenerate", nil)
+	form := url.Values{"totp_code": {totpCodeAt(t, secret, time.Now())}}
+	req, err := http.NewRequest(http.MethodPost, adminSrv.URL+"/admin/api-keys/regenerate", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

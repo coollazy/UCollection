@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateConsolidationBatchHandler_RedirectsToSignPage(t *testing.T) {
@@ -17,12 +18,13 @@ func TestCreateConsolidationBatchHandler_RedirectsToSignPage(t *testing.T) {
 	ord1 := newOrder(t, pool, walletID, "order-1")
 	ord2 := newOrder(t, pool, walletID, "order-2")
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/batches", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {testDestinationAddress},
 		"order_id":            {strconv.FormatInt(ord1.ID, 10), strconv.FormatInt(ord2.ID, 10)},
+		"totp_code":           {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303; body = %s", resp.StatusCode, readBody(t, resp))
@@ -68,12 +70,13 @@ func TestCreateConsolidationBatchHandler_InvalidDestinationAddress(t *testing.T)
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/batches", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {"not-a-valid-address"},
 		"order_id":            {strconv.FormatInt(ord.ID, 10)},
+		"totp_code":           {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
@@ -86,11 +89,12 @@ func TestCreateConsolidationBatchHandler_NoOrderSelected(t *testing.T) {
 	deps := Deps{Pool: pool}
 	walletID := newMasterWallet(t, pool)
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/batches", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {testDestinationAddress},
+		"totp_code":           {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
@@ -104,7 +108,7 @@ func TestCreateFeeTopupBatchHandler_RedirectsToSignPage(t *testing.T) {
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/fee-topup-batches", url.Values{
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
@@ -112,6 +116,7 @@ func TestCreateFeeTopupBatchHandler_RedirectsToSignPage(t *testing.T) {
 		"fee_source_address": {testSourceAddress},
 		"amount_per_order":   {"1000000"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
+		"totp_code":          {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303; body = %s", resp.StatusCode, readBody(t, resp))
@@ -153,7 +158,7 @@ func TestCreateFeeTopupBatchHandler_InvalidFeeSource(t *testing.T) {
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/fee-topup-batches", url.Values{
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
@@ -161,6 +166,7 @@ func TestCreateFeeTopupBatchHandler_InvalidFeeSource(t *testing.T) {
 		"fee_source_address": {testSourceAddress},
 		"amount_per_order":   {"1000000"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
+		"totp_code":          {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
@@ -174,7 +180,7 @@ func TestCreateFeeTopupBatchHandler_InvalidAmount(t *testing.T) {
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/fee-topup-batches", url.Values{
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
@@ -182,12 +188,17 @@ func TestCreateFeeTopupBatchHandler_InvalidAmount(t *testing.T) {
 		"fee_source_address": {testSourceAddress},
 		"amount_per_order":   {"0"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
+		"totp_code":          {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
 	}
 }
 
+// TestBatchWriteRoutes_RequireFreshTOTP ADR-0016: every POST requires its
+// own totp_code every time (no freshness grace window) — a request with no
+// code redirects to returnTo ("/admin/consolidation") with
+// totp_error=missing, not to the separate /admin/reverify-totp page.
 func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
@@ -195,19 +206,19 @@ func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-
-	// Same guarantee as address-book writes and /tron-proxy/... in Part 1:
-	// an active session whose TOTP verification has gone stale (>15 min)
-	// must be bounced to reverify before either batch-creation route runs.
-	cookie := newStaleActiveSessionCookie(t, pool)
+	cookie := newActiveSessionCookie(t, pool)
 
 	consolidationResp := postForm(t, srv, cookie, "/admin/consolidation/batches", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {testDestinationAddress},
 		"order_id":            {strconv.FormatInt(ord.ID, 10)},
 	})
-	if consolidationResp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(consolidationResp.Header.Get("Location"), "/admin/reverify-totp") {
-		t.Fatalf("batches: status=%d location=%q, want 303 to reverify", consolidationResp.StatusCode, consolidationResp.Header.Get("Location"))
+	consolidationLoc, err := url.Parse(consolidationResp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if consolidationResp.StatusCode != http.StatusSeeOther || consolidationLoc.Path != "/admin/consolidation" || consolidationLoc.Query().Get("totp_error") != "missing" {
+		t.Fatalf("batches: status=%d location=%q, want 303 to /admin/consolidation?totp_error=missing", consolidationResp.StatusCode, consolidationResp.Header.Get("Location"))
 	}
 
 	feeTopupResp := postForm(t, srv, cookie, "/admin/consolidation/fee-topup-batches", url.Values{
@@ -217,7 +228,11 @@ func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 		"amount_per_order":   {"1000000"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
 	})
-	if feeTopupResp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(feeTopupResp.Header.Get("Location"), "/admin/reverify-totp") {
-		t.Fatalf("fee-topup-batches: status=%d location=%q, want 303 to reverify", feeTopupResp.StatusCode, feeTopupResp.Header.Get("Location"))
+	feeTopupLoc, err := url.Parse(feeTopupResp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if feeTopupResp.StatusCode != http.StatusSeeOther || feeTopupLoc.Path != "/admin/consolidation" || feeTopupLoc.Query().Get("totp_error") != "missing" {
+		t.Fatalf("fee-topup-batches: status=%d location=%q, want 303 to /admin/consolidation?totp_error=missing", feeTopupResp.StatusCode, feeTopupResp.Header.Get("Location"))
 	}
 }

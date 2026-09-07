@@ -51,7 +51,7 @@ func paramsPageHandler(deps Deps) http.HandlerFunc {
 			AmountTolerancePercent: tolerance,
 			StallTimeoutSeconds:    stallTimeout,
 			FlashError:             paramsErrorMessage(q.Get("error")),
-			FlashSuccess:           q.Get("success"),
+			FlashSuccess:           firstNonEmpty(q.Get("success"), totpReverifiedNotice(r)),
 		})
 	}
 }

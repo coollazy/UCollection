@@ -63,7 +63,7 @@ func webhookConfigPageHandler(deps Deps) http.HandlerFunc {
 		q := r.URL.Query()
 		loadWebhookConfigPage(w, r, deps, webhookConfigPageData{
 			FlashError:   webhookConfigErrorMessage(q.Get("error")),
-			FlashSuccess: q.Get("success"),
+			FlashSuccess: firstNonEmpty(q.Get("success"), totpReverifiedNotice(r)),
 		})
 	}
 }

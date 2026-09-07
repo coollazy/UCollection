@@ -304,13 +304,12 @@ func TestPasswordChange_RequiresFreshTOTPAndClearsAllSessions(t *testing.T) {
 	code := codeAt(t, secret, time.Now())
 	doPostForm(t, client, srv.URL+"/admin/login/totp", url.Values{"code": {code}})
 
-	if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_totp_verified_at = now() - interval '16 minutes'`); err != nil {
-		t.Fatalf("age last_totp_verified_at: %v", err)
-	}
-
+	// ADR-0016: GET-protected pages have no body to carry a code in, so
+	// every single visit bounces through /admin/reverify-totp first — no
+	// grace window, not even right after a just-completed login.
 	getResp := doGet(t, client, srv.URL+"/admin/password")
 	if getResp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("GET /admin/password with stale TOTP: status = %d, want 303", getResp.StatusCode)
+		t.Fatalf("GET /admin/password: status = %d, want 303 every time (no freshness grace window)", getResp.StatusCode)
 	}
 	loc, err := url.Parse(getResp.Header.Get("Location"))
 	if err != nil {
@@ -320,21 +319,19 @@ func TestPasswordChange_RequiresFreshTOTPAndClearsAllSessions(t *testing.T) {
 		t.Fatalf("Location = %q, want /admin/reverify-totp?next=/admin/password", getResp.Header.Get("Location"))
 	}
 
-	reverifyCode := codeAt(t, secret, time.Now().Add(30*time.Second)) // different step than the login code, avoid replay rejection
-	reverifyResp := doPostForm(t, client, srv.URL+"/admin/reverify-totp", url.Values{"code": {reverifyCode}, "next": {"/admin/password"}})
-	if reverifyResp.StatusCode != http.StatusSeeOther || reverifyResp.Header.Get("Location") != "/admin/password" {
-		t.Fatalf("reverify: status=%d location=%q, want 303 to /admin/password", reverifyResp.StatusCode, reverifyResp.Header.Get("Location"))
-	}
-
-	nowFreshGet := doGet(t, client, srv.URL+"/admin/password")
-	if nowFreshGet.StatusCode != http.StatusOK {
-		t.Fatalf("GET /admin/password after reverify: status = %d, want 200", nowFreshGet.StatusCode)
-	}
-
+	// POST /admin/password carries its own totp_code field — it does not
+	// depend on GET /admin/password's separate reverify-totp challenge
+	// checked above (ADR-0016: every high-risk POST verifies a code fresh
+	// in the same request, independent of any other route's step-up
+	// state). Only two real TOTP validations happen in this test (login's
+	// and this one) so both stay comfortably inside the ±1 period (30s)
+	// skew window without colliding with replay protection.
 	const newPassword = "a-brand-new-12char-password" //nolint:gosec // test fixture value, not a real credential
+	changeCode := codeAt(t, secret, time.Now().Add(30*time.Second)) // different step than the login code, avoid replay rejection
 	changeResp := doPostForm(t, client, srv.URL+"/admin/password", url.Values{
 		"current_password": {testPassword},
 		"new_password":     {newPassword},
+		"totp_code":        {changeCode},
 	})
 	if changeResp.StatusCode != http.StatusSeeOther || changeResp.Header.Get("Location") != "/admin/login" {
 		t.Fatalf("password change: status=%d location=%q, want 303 to /admin/login", changeResp.StatusCode, changeResp.Header.Get("Location"))

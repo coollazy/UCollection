@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
@@ -17,9 +18,9 @@ func TestUpdateWebhookURLHandler_Success(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"webhook_url": {"https://merchant.example/hook"}}
+	form := url.Values{"webhook_url": {"https://merchant.example/hook"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -57,9 +58,9 @@ func TestUpdateWebhookURLHandler_InvalidURL(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"webhook_url": {"not-a-url"}}
+	form := url.Values{"webhook_url": {"not-a-url"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -90,9 +91,8 @@ func TestUpdateWebhookURLHandler_RequiresFreshTOTP(t *testing.T) {
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
 	cookie := newActiveSessionCookie(t, pool)
-	if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_totp_verified_at = now() - interval '1 hour'`); err != nil {
-		t.Fatalf("stale totp: %v", err)
-	}
+	// No admin_account/totp_secret set up — ADR-0016: every POST requires
+	// its own totp_code, checked fresh every time.
 
 	form := url.Values{"webhook_url": {"https://merchant.example/hook"}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config", strings.NewReader(form.Encode()))
@@ -106,8 +106,12 @@ func TestUpdateWebhookURLHandler_RequiresFreshTOTP(t *testing.T) {
 		t.Fatalf("Do: %v", err)
 	}
 	t.Cleanup(func() { _ = resp.Body.Close() })
-	if got := resp.Header.Get("Location"); !strings.Contains(got, "/admin/reverify-totp") {
-		t.Errorf("Location = %q, want redirect to /admin/reverify-totp", got)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if loc.Path != "/admin/webhook-config" || loc.Query().Get("totp_error") != "missing" {
+		t.Errorf("Location = %q, want /admin/webhook-config?totp_error=missing", resp.Header.Get("Location"))
 	}
 }
 
@@ -116,9 +120,9 @@ func TestUpdateWebhookSecretHandler_Generate(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"mode": {"generate"}}
+	form := url.Values{"mode": {"generate"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config/secret", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -160,9 +164,9 @@ func TestUpdateWebhookSecretHandler_ManualRedirects(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"mode": {"manual"}, "secret": {"my-own-secret"}}
+	form := url.Values{"mode": {"manual"}, "secret": {"my-own-secret"}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config/secret", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
@@ -192,9 +196,9 @@ func TestUpdateWebhookSecretHandler_ManualEmptyRejected(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	form := url.Values{"mode": {"manual"}, "secret": {"  "}}
+	form := url.Values{"mode": {"manual"}, "secret": {"  "}, "totp_code": {totpCodeAt(t, secret, time.Now())}}
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/webhook-config/secret", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)

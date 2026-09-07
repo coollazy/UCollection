@@ -2,17 +2,12 @@ package consolidation
 
 import (
 	"context"
-	cryptorand "crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/coollazy/UCollection/internal/store"
+	"time"
 )
 
 func TestAddressBookPage_Renders(t *testing.T) {
@@ -40,12 +35,13 @@ func TestAddressBookSubmit_Create(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/address-book", url.Values{
-		"id":      {""},
-		"address": {testDestinationAddress},
-		"label":   {"new entry"},
+		"id":        {""},
+		"address":   {testDestinationAddress},
+		"label":     {"new entry"},
+		"totp_code": {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/admin/consolidation/address-book" {
 		t.Fatalf("status=%d location=%q, want 303 to the address book page", resp.StatusCode, resp.Header.Get("Location"))
@@ -64,12 +60,13 @@ func TestAddressBookSubmit_CreateInvalidFormatRedirectsWithError(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/address-book", url.Values{
-		"id":      {""},
-		"address": {"not-an-address"},
-		"label":   {"whatever"},
+		"id":        {""},
+		"address":   {"not-an-address"},
+		"label":     {"whatever"},
+		"totp_code": {totpCodeAt(t, secret, time.Now())},
 	})
 	loc, err := url.Parse(resp.Header.Get("Location"))
 	if err != nil {
@@ -89,12 +86,13 @@ func TestAddressBookSubmit_Rename(t *testing.T) {
 		t.Fatalf("CreateAddressBookEntry() error = %v", err)
 	}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/address-book", url.Values{
-		"id":      {strconv.FormatInt(entry.ID, 10)},
-		"address": {testDestinationAddress},
-		"label":   {"renamed"},
+		"id":        {strconv.FormatInt(entry.ID, 10)},
+		"address":   {testDestinationAddress},
+		"label":     {"renamed"},
+		"totp_code": {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -113,12 +111,13 @@ func TestAddressBookSubmit_RenameNotFoundRedirectsWithError(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/address-book", url.Values{
-		"id":      {"999999"},
-		"address": {testDestinationAddress},
-		"label":   {"x"},
+		"id":        {"999999"},
+		"address":   {testDestinationAddress},
+		"label":     {"x"},
+		"totp_code": {totpCodeAt(t, secret, time.Now())},
 	})
 	loc, err := url.Parse(resp.Header.Get("Location"))
 	if err != nil {
@@ -138,9 +137,9 @@ func TestAddressBookDelete_Success(t *testing.T) {
 		t.Fatalf("CreateAddressBookEntry() error = %v", err)
 	}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	resp := doDelete(t, srv, cookie, "/admin/consolidation/address-book/"+strconv.FormatInt(entry.ID, 10))
+	resp := doDeleteWithTOTPCode(t, srv, cookie, "/admin/consolidation/address-book/"+strconv.FormatInt(entry.ID, 10), totpCodeAt(t, secret, time.Now()))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
@@ -158,52 +157,41 @@ func TestAddressBookDelete_NotFound(t *testing.T) {
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
 	srv := newTestMux(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	resp := doDelete(t, srv, cookie, "/admin/consolidation/address-book/999999")
+	resp := doDeleteWithTOTPCode(t, srv, cookie, "/admin/consolidation/address-book/999999", totpCodeAt(t, secret, time.Now()))
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
+// TestAddressBookWriteRoutes_RequireFreshTOTP ADR-0016: every POST/DELETE
+// requires its own totp_code every time (no freshness grace window) — a
+// request with no code redirects to returnTo with totp_error=missing, not
+// to the separate /admin/reverify-totp page (that's only for GET-registered
+// routes, which have no body to carry a code in).
 func TestAddressBookWriteRoutes_RequireFreshTOTP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
 	srv := newTestMux(t, deps)
-
-	// An active session whose TOTP verification is stale (>15 minutes) must
-	// be redirected to reverify before either write route runs, same as
-	// /tron-proxy/... in Part 1.
-	cookie := newStaleActiveSessionCookie(t, pool)
+	cookie := newActiveSessionCookie(t, pool)
 
 	postResp := postForm(t, srv, cookie, "/admin/consolidation/address-book", url.Values{"id": {""}, "address": {testDestinationAddress}, "label": {"x"}})
-	if postResp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(postResp.Header.Get("Location"), "/admin/reverify-totp") {
-		t.Fatalf("POST: status=%d location=%q, want 303 to reverify", postResp.StatusCode, postResp.Header.Get("Location"))
+	postLoc, err := url.Parse(postResp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if postResp.StatusCode != http.StatusSeeOther || postLoc.Path != "/admin/consolidation/address-book" || postLoc.Query().Get("totp_error") != "missing" {
+		t.Fatalf("POST: status=%d location=%q, want 303 to /admin/consolidation/address-book?totp_error=missing", postResp.StatusCode, postResp.Header.Get("Location"))
 	}
 
 	deleteResp := doDelete(t, srv, cookie, "/admin/consolidation/address-book/1")
-	if deleteResp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(deleteResp.Header.Get("Location"), "/admin/reverify-totp") {
-		t.Fatalf("DELETE: status=%d location=%q, want 303 to reverify", deleteResp.StatusCode, deleteResp.Header.Get("Location"))
-	}
-}
-
-func newStaleActiveSessionCookie(t *testing.T, pool *store.Pool) *http.Cookie {
-	t.Helper()
-	buf := make([]byte, 32)
-	if _, err := cryptorand.Read(buf); err != nil {
-		t.Fatalf("rand.Read: %v", err)
-	}
-	token := base64.RawURLEncoding.EncodeToString(buf)
-	sum := sha256.Sum256([]byte(token))
-	tokenHash := hex.EncodeToString(sum[:])
-
-	_, err := pool.Exec(context.Background(), `
-		INSERT INTO admin_sessions (token_hash, status, expires_at, last_seen_at, last_totp_verified_at)
-		VALUES ($1, 'active', now() + interval '1 hour', now(), now() - interval '16 minutes')
-	`, tokenHash)
+	deleteLoc, err := url.Parse(deleteResp.Header.Get("Location"))
 	if err != nil {
-		t.Fatalf("insert admin_sessions: %v", err)
+		t.Fatalf("parse Location: %v", err)
 	}
-	return &http.Cookie{Name: sessionCookieName, Value: token} //nolint:gosec // test-only outgoing request cookie, not a real Set-Cookie response
+	if deleteResp.StatusCode != http.StatusSeeOther || deleteLoc.Path != "/admin/consolidation/address-book" || deleteLoc.Query().Get("totp_error") != "missing" {
+		t.Fatalf("DELETE: status=%d location=%q, want 303 to /admin/consolidation/address-book?totp_error=missing", deleteResp.StatusCode, deleteResp.Header.Get("Location"))
+	}
 }

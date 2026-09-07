@@ -20,12 +20,14 @@ import (
 // 設計第9節「Session模型」).
 const cookieName = "ucollection_session"
 
-// Timeouts per 技術架構設計第9節「Session模型」/「高風險操作Step-up驗證」.
+// Timeouts per 技術架構設計第9節「Session模型」. There is deliberately no
+// TOTP-freshness window constant here (ADR-0016 removed it — high-risk
+// operations require a currently-valid code every time, see
+// RequireTOTPCode's doc comment).
 const (
 	pendingSessionTTL = 5 * time.Minute
 	activeSessionTTL  = 12 * time.Hour
 	idleTimeout       = 30 * time.Minute
-	freshTOTPWindow   = 15 * time.Minute
 )
 
 type sessionStatus string
@@ -45,6 +47,14 @@ type Session struct {
 	ExpiresAt          time.Time
 	LastSeenAt         time.Time
 	LastTOTPVerifiedAt *time.Time
+	// LastStepUpVerifiedAt is set only by a successful RequireTOTPCode /
+	// RequireTOTPCodeOrRecentStepUp verification — unlike
+	// LastTOTPVerifiedAt, login itself (activateSession) never touches
+	// this. RequireTOTPCodeOrRecentStepUp's batch grace window (ADR-0016)
+	// reads this field specifically so "just logged in" can never
+	// substitute for "actually stepped up for a high-risk action" — see
+	// that migration's doc comment (0008_stepup_verified_at.up.sql).
+	LastStepUpVerifiedAt *time.Time
 }
 
 var errSessionNotFound = errors.New("auth: session not found")
@@ -62,11 +72,11 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-const sessionColumns = `id, status, pending_totp_secret, totp_attempt_count, created_at, expires_at, last_seen_at, last_totp_verified_at`
+const sessionColumns = `id, status, pending_totp_secret, totp_attempt_count, created_at, expires_at, last_seen_at, last_totp_verified_at, last_stepup_verified_at`
 
 func scanSession(row pgx.Row) (Session, error) {
 	var s Session
-	err := row.Scan(&s.ID, &s.Status, &s.PendingTOTPSecret, &s.TOTPAttemptCount, &s.CreatedAt, &s.ExpiresAt, &s.LastSeenAt, &s.LastTOTPVerifiedAt)
+	err := row.Scan(&s.ID, &s.Status, &s.PendingTOTPSecret, &s.TOTPAttemptCount, &s.CreatedAt, &s.ExpiresAt, &s.LastSeenAt, &s.LastTOTPVerifiedAt, &s.LastStepUpVerifiedAt)
 	return s, err
 }
 
@@ -151,8 +161,16 @@ func setPendingTOTPSecret(ctx context.Context, pool *store.Pool, id int64, secre
 	return err
 }
 
+// markTOTPVerified always means an explicit step-up just happened (called
+// only from completeReverify — /admin/reverify-totp's submit handler and
+// RequireTOTPCode/RequireTOTPCodeOrRecentStepUp's success paths), so it
+// updates both last_totp_verified_at (general "last successful
+// verification" audit field, unaffected by ADR-0016) and
+// last_stepup_verified_at (step-up-specific, read only by
+// RequireTOTPCodeOrRecentStepUp's batch grace window — see that field's
+// doc comment for why login must not satisfy it).
 func markTOTPVerified(ctx context.Context, pool *store.Pool, id int64) error {
-	_, err := pool.Exec(ctx, `UPDATE admin_sessions SET last_totp_verified_at = now() WHERE id = $1`, id)
+	_, err := pool.Exec(ctx, `UPDATE admin_sessions SET last_totp_verified_at = now(), last_stepup_verified_at = now() WHERE id = $1`, id)
 	return err
 }
 

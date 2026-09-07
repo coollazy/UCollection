@@ -19,6 +19,7 @@ type masterWalletRow struct {
 type masterWalletsListPageData struct {
 	Wallets    []masterWalletRow
 	FlashError string
+	Notice     string
 }
 
 // masterWalletsListHandler implements GET /admin/master-wallets (技術架構設計
@@ -64,6 +65,7 @@ func masterWalletsListHandler(deps Deps) http.HandlerFunc {
 		render(w, http.StatusOK, "master_wallets.html", masterWalletsListPageData{
 			Wallets:    wallets,
 			FlashError: masterWalletsReactivateErrorMessage(r.URL.Query().Get("error")),
+			Notice:     totpReverifiedNotice(r),
 		})
 	}
 }

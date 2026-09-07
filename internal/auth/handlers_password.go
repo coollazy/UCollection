@@ -7,13 +7,34 @@ import (
 )
 
 type passwordPageData struct {
-	Error string
+	Error  string
+	Notice string
 }
 
 func passwordPageHandler(_ Deps) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		render(w, http.StatusOK, "password.html", passwordPageData{})
+	return func(w http.ResponseWriter, r *http.Request) {
+		render(w, http.StatusOK, "password.html", passwordPageData{Notice: totpReverifiedNotice(r)})
 	}
+}
+
+// totpReverifiedNotice mirrors internal/admin's helper of the same name
+// (見該package templates.go——這裡故意重複一份小helper而非跨package共用，比照本
+// 專案既有慣例，見internal/consolidation對CSP常數的處理). Tells the operator why
+// they landed back on this GET page instead of their original POST
+// completing — see RequireTOTPCode's doc comment.
+func totpReverifiedNotice(r *http.Request) string {
+	switch r.URL.Query().Get("totp_error") {
+	case "missing":
+		return "此操作需要輸入TOTP驗證碼，請重新填寫並送出"
+	case "invalid":
+		return "TOTP驗證碼錯誤，請重新填寫並送出"
+	case "replay":
+		return "此驗證碼已被使用，請等待新一組驗證碼後再試"
+	}
+	if r.URL.Query().Get("totp_reverified") != "1" {
+		return ""
+	}
+	return "TOTP已重新驗證，請重新填寫並送出剛才的操作"
 }
 
 // passwordSubmitHandler implements 技術架構設計第9節「修改密碼」: current

@@ -8,6 +8,18 @@ import (
 	"github.com/coollazy/UCollection/internal/audit"
 )
 
+// appendReverifiedFlag adds a marker query param so the page RequireFreshTOTP
+// sent the operator back to (見middleware.go之RequireFreshTOTP doc comment)
+// can show a "請重新送出剛才的操作" notice — the original POST body was lost
+// when the step-up redirect fired, so this is purely informational.
+func appendReverifiedFlag(path string) string {
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + "totp_reverified=1"
+}
+
 type reverifyPageData struct {
 	Next  string
 	Error string
@@ -100,6 +112,6 @@ func reverifySubmitHandler(deps Deps, limiter *ipLimiter) http.HandlerFunc {
 		}
 		_ = audit.Log(ctx, deps.Pool, "admin", "TOTP_REVERIFY_SUCCESS", nil, nil, map[string]any{"ip": ip})
 
-		http.Redirect(w, r, next, http.StatusSeeOther) //nolint:gosec // next is always sanitizeNextPath()'d above (must start with a single "/"), so this can't become an open redirect
+		http.Redirect(w, r, appendReverifiedFlag(next), http.StatusSeeOther) //nolint:gosec // next is always sanitizeNextPath()'d above (must start with a single "/"), so this can't become an open redirect
 	}
 }

@@ -20,6 +20,7 @@ type apiKeyRow struct {
 type apiKeysListPageData struct {
 	Keys       []apiKeyRow
 	FlashError string
+	Notice     string
 }
 
 // apiKeysListHandler implements GET /admin/api-keys (技術架構設計第11節「API Key
@@ -49,7 +50,7 @@ func apiKeysListHandler(deps Deps) http.HandlerFunc {
 			return
 		}
 
-		render(w, http.StatusOK, "api_keys.html", apiKeysListPageData{Keys: keys})
+		render(w, http.StatusOK, "api_keys.html", apiKeysListPageData{Keys: keys, Notice: totpReverifiedNotice(r)})
 	}
 }
 

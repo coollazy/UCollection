@@ -5,6 +5,7 @@
 <h1>歸集地址簿</h1>
 <p><a href="/admin/consolidation">回待歸集列表</a></p>
 {{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 
 <table border="1" cellpadding="4">
   <tr><th>地址</th><th>名稱</th><th>建立時間</th><th></th></tr>
@@ -16,6 +17,7 @@
         <input type="hidden" name="id" value="{{.ID}}">
         <input type="hidden" name="address" value="{{.Address}}">
         <input type="text" name="label" value="{{.Label}}">
+        <input type="text" name="totp_code" placeholder="TOTP驗證碼" inputmode="numeric" autocomplete="off" required>
         <button type="submit">改名</button>
       </form>
     </td>
@@ -30,6 +32,7 @@
   <input type="hidden" name="id" value="">
   <p><label>地址 <input type="text" name="address" required></label></p>
   <p><label>名稱 <input type="text" name="label" required></label></p>
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <p><button type="submit">新增</button></p>
 </form>
 

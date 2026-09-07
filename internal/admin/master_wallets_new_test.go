@@ -6,30 +6,34 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
 
 const secondTestXpub = "xpub6D1AabNHCupeiLM65ZR9UStMhJ1vCpyV4XbZdyhMZBiJXALQtmn9p42VTQckoHVn8WNqS7dqnJokZHAHcHGoaSecondXpb"
 
+// TestMasterWalletNewPageHandler_SetsStrictCSP exercises masterWalletNewPageHandler
+// directly rather than through the full mux: ADR-0016 makes RequireTOTPCode
+// unconditionally redirect every GET to /admin/reverify-totp first (no
+// freshness grace window), so a request routed through the real mux never
+// reaches this handler without a full login+TOTP-code round trip. CSP-header
+// setting is this handler's own responsibility regardless of what gates it,
+// so testing it in isolation is both simpler and still exercises the real
+// behavior under test.
 func TestMasterWalletNewPageHandler_SetsStrictCSP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
-	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
 
-	req, err := http.NewRequest(http.MethodGet, srv.URL+"/admin/master-wallets/new", nil)
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.AddCookie(cookie)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/master-wallets/new", nil)
+	masterWalletNewPageHandler(deps).ServeHTTP(rec, req)
+	resp := rec.Result()
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	got := resp.Header.Get("Content-Security-Policy")
@@ -56,7 +60,7 @@ func TestCreateMasterWalletHandler_Success(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	body, _ := json.Marshal(createMasterWalletRequest{Xpub: secondTestXpub})
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets", bytes.NewReader(body))
@@ -64,6 +68,7 @@ func TestCreateMasterWalletHandler_Success(t *testing.T) {
 		t.Fatalf("NewRequest: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Totp-Code", totpCodeAt(t, secret, time.Now()))
 	req.AddCookie(cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -116,7 +121,7 @@ func TestCreateMasterWalletHandler_Duplicate(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
 	body, _ := json.Marshal(createMasterWalletRequest{Xpub: testXpub})
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets", bytes.NewReader(body))
@@ -124,6 +129,7 @@ func TestCreateMasterWalletHandler_Duplicate(t *testing.T) {
 		t.Fatalf("NewRequest: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Totp-Code", totpCodeAt(t, secret, time.Now()))
 	req.AddCookie(cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -150,6 +156,12 @@ func TestCreateMasterWalletHandler_Duplicate(t *testing.T) {
 	}
 }
 
+// TestCreateMasterWalletHandler_RequiresFreshTOTP ADR-0016: every POST
+// requires its own totp_code every time (no freshness grace window) — a
+// request with no code redirects to returnTo ("/admin/master-wallets")
+// with totp_error=missing, not to the separate /admin/reverify-totp page
+// (that's only for GET-registered routes, which have no body to carry a
+// code in).
 func TestCreateMasterWalletHandler_RequiresFreshTOTP(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
@@ -157,9 +169,6 @@ func TestCreateMasterWalletHandler_RequiresFreshTOTP(t *testing.T) {
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
 	cookie := newActiveSessionCookie(t, pool)
-	if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_totp_verified_at = now() - interval '1 hour'`); err != nil {
-		t.Fatalf("stale totp: %v", err)
-	}
 
 	body, _ := json.Marshal(createMasterWalletRequest{Xpub: secondTestXpub})
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets", bytes.NewReader(body))
@@ -175,10 +184,14 @@ func TestCreateMasterWalletHandler_RequiresFreshTOTP(t *testing.T) {
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("status = %d, want 303 (stale TOTP)", resp.StatusCode)
+		t.Fatalf("status = %d, want 303 (missing totp_code)", resp.StatusCode)
 	}
-	if got := resp.Header.Get("Location"); !strings.Contains(got, "/admin/reverify-totp") {
-		t.Errorf("Location = %q, want redirect to /admin/reverify-totp", got)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if loc.Path != "/admin/master-wallets" || loc.Query().Get("totp_error") != "missing" {
+		t.Fatalf("Location = %q, want /admin/master-wallets?totp_error=missing", resp.Header.Get("Location"))
 	}
 
 	var count int

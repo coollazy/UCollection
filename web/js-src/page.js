@@ -28,12 +28,26 @@ function storageKeyFor(page) {
   return page.type === 'consolidation' ? `consolidation:${page.master_wallet_id}` : `fee-topup:${page.fee_source_address}`;
 }
 
-async function postJSON(url, body) {
+// postJSON's totpCode is only needed on the first call of a batch-processing
+// run — auth.RequireTOTPCodeOrRecentStepUp (見ADR-0016「批次寬限」修訂) lets
+// this session's later /tron-proxy/... calls through without one for a
+// short window afterward, so a whole batch only prompts the operator once
+// instead of twice per item.
+async function postJSON(url, body, totpCode) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (totpCode) headers['X-Totp-Code'] = totpCode;
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
+  // A redirected response means RequireTOTPCode(OrRecentStepUp) intercepted
+  // the request (missing/invalid/replayed code, or the batch grace window
+  // expired) rather than the handler running — see auth.RequireTOTPCode's
+  // doc comment. Its body is the returnTo page's HTML, not JSON.
+  if (resp.redirected) {
+    throw new Error('TOTP驗證碼有誤或已過期，請重新整理頁面、重新輸入驗證碼後再試一次');
+  }
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {
     const message = data && typeof data.message === 'string' ? data.message : `HTTP ${resp.status}`;
@@ -63,7 +77,20 @@ export function initSignPage() {
     deriveButton: document.getElementById('derive-button'),
     signButton: document.getElementById('sign-button'),
     signStatus: document.getElementById('sign-status'),
+    totpCodeInput: document.getElementById('totp-code-input'),
   };
+
+  // Set once per handleSignAndBroadcast() run, consumed by exactly the
+  // first postJSON() call that run makes — every call after that omits the
+  // header and relies on auth.RequireTOTPCodeOrRecentStepUp's batch grace
+  // window (見postJSON's doc comment). Never populated ahead of the
+  // operator clicking "簽名並廣播" for this run specifically.
+  let pendingTOTPCode = null;
+  function consumeTOTPCode() {
+    const code = pendingTOTPCode;
+    pendingTOTPCode = null;
+    return code;
+  }
 
   // Populated by handleDerive(), consumed by handleSignAndBroadcast().
   // Private key bytes live ONLY in this closure — never written back into
@@ -322,7 +349,7 @@ export function initSignPage() {
         ? { batch_id: page.batch_id, order_id: item.order_id }
         : { batch_id: page.batch_id, order_id: item.order_id, amount: Number(amountInput.value) };
     const prepareUrl = page.type === 'consolidation' ? '/tron-proxy/consolidation/prepare' : '/tron-proxy/fee-topup/prepare';
-    const prepared = await postJSON(prepareUrl, prepareBody);
+    const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
 
     itemStatusEl(item.order_id).textContent = '簽名中...';
     const { signedTransaction, txIDMatched } = signTransaction(prepared.transaction, privateKey);
@@ -337,7 +364,7 @@ export function initSignPage() {
 
     itemStatusEl(item.order_id).textContent = '廣播中...';
     const broadcastUrl = page.type === 'consolidation' ? '/tron-proxy/consolidation/broadcast' : '/tron-proxy/fee-topup/broadcast';
-    const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction });
+    const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction }, consumeTOTPCode());
     itemStatusEl(item.order_id).textContent = statusLabel(result.status, result.error_detail);
   }
 
@@ -347,6 +374,12 @@ export function initSignPage() {
   // 附加測試 already confirmed concurrent broadcasts don't interfere). One
   // item failing must not stop the rest (技術架構設計第10節「逐筆獨立追蹤」).
   async function handleSignAndBroadcast() {
+    const totpCode = els.totpCodeInput.value.trim();
+    if (!totpCode) {
+      els.signStatus.textContent = '請輸入TOTP驗證碼';
+      return;
+    }
+    pendingTOTPCode = totpCode;
     els.signButton.disabled = true;
     els.deriveButton.disabled = true;
     for (const item of page.items) {

@@ -26,9 +26,10 @@ type Deps struct {
 func RegisterRoutes(mux *http.ServeMux, deps Deps) {
 	// Shared across every rate-limited endpoint on purpose (技術架構設計第9節
 	// 「登入限流」第1層: /admin/login、/admin/login/totp、
-	// /admin/login/totp-setup、/admin/reverify-totp share one 15-minute
-	// per-IP failure budget, not four independent ones).
-	limiter := newIPLimiter()
+	// /admin/login/totp-setup、/admin/reverify-totp、RequireTOTPCode's inline
+	// verification all share one 15-minute per-IP failure budget — see
+	// sharedIPLimiter's doc comment.
+	limiter := sharedIPLimiter
 
 	mux.HandleFunc("GET /admin/login", loginPageHandler(deps))
 	mux.HandleFunc("POST /admin/login", loginSubmitHandler(deps, limiter))
@@ -44,8 +45,8 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps) {
 
 	mux.HandleFunc("POST /admin/logout", logoutHandler(deps))
 
-	mux.Handle("GET /admin/password", RequireSession(deps)(RequireFreshTOTP(deps)(passwordPageHandler(deps))))
-	mux.Handle("POST /admin/password", RequireSession(deps)(RequireFreshTOTP(deps)(passwordSubmitHandler(deps))))
+	mux.Handle("GET /admin/password", RequireSession(deps)(RequireTOTPCode(deps, SelfPath)(passwordPageHandler(deps))))
+	mux.Handle("POST /admin/password", RequireSession(deps)(RequireTOTPCode(deps, func(*http.Request) string { return "/admin/password" })(passwordSubmitHandler(deps))))
 }
 
 // Run starts the session-cleanup ticker (技術架構設計第9節) and blocks until

@@ -6,6 +6,7 @@
 <p><a href="/admin/orders">回訂單列表</a></p>
 {{if .Flash}}<p style="color:green">操作成功（{{.Flash}}）</p>{{end}}
 {{if .FlashError}}<p style="color:red">操作失敗（{{.FlashError}}）</p>{{end}}
+{{if .TOTPReverifiedNotice}}<p style="color:blue">{{.TOTPReverifiedNotice}}</p>{{end}}
 
 <h2>基本資料</h2>
 <table border="1" cellpadding="4">
@@ -86,6 +87,7 @@
     {{end}}
   </p>
   <p><label>改判理由（必填） <input type="text" name="note" required></label></p>
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <p><button type="submit">送出改判</button></p>
 </form>
 {{end}}

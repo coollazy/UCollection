@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coollazy/UCollection/internal/tronclient"
 )
@@ -23,12 +25,14 @@ func TestReactivateMasterWalletHandler_Success(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/master-wallets/%d/reactivate", inactiveID), nil)
+	form := url.Values{"totp_code": {totpCodeAt(t, secret, time.Now())}}
+	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/master-wallets/%d/reactivate", inactiveID), strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {
@@ -73,12 +77,14 @@ func TestReactivateMasterWalletHandler_AlreadyActive(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/master-wallets/%d/reactivate", activeID), nil)
+	form := url.Values{"totp_code": {totpCodeAt(t, secret, time.Now())}}
+	req, err := http.NewRequest(http.MethodPost, srv.URL+fmt.Sprintf("/admin/master-wallets/%d/reactivate", activeID), strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {
@@ -92,12 +98,16 @@ func TestReactivateMasterWalletHandler_AlreadyActive(t *testing.T) {
 		t.Errorf("Location = %q, want error=already_active", got)
 	}
 
+	// RequireTOTPCode itself logs TOTP_STEPUP_SUCCESS on every valid code
+	// (ADR-0016) — that's expected and unrelated to this assertion, which
+	// is specifically that the no-op reactivate attempt itself didn't log
+	// anything beyond the step-up verification.
 	var auditCount int
-	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_logs`).Scan(&auditCount); err != nil {
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_logs WHERE action_type != 'TOTP_STEPUP_SUCCESS'`).Scan(&auditCount); err != nil {
 		t.Fatalf("count audit_logs: %v", err)
 	}
 	if auditCount != 0 {
-		t.Errorf("audit_logs count = %d, want 0 (no-op must not log)", auditCount)
+		t.Errorf("audit_logs count = %d, want 0 (no-op must not log, aside from the step-up verification itself)", auditCount)
 	}
 }
 
@@ -107,12 +117,14 @@ func TestReactivateMasterWalletHandler_NotFound(t *testing.T) {
 
 	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
 	srv := newTestServer(t, deps)
-	cookie := newActiveSessionCookie(t, pool)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets/99999/reactivate", nil)
+	form := url.Values{"totp_code": {totpCodeAt(t, secret, time.Now())}}
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets/99999/reactivate", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {

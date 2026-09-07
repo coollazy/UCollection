@@ -14,6 +14,7 @@
 <h2>URL</h2>
 <form method="post" action="/admin/webhook-config">
   <p><label>Webhook URL <input type="text" name="webhook_url" value="{{.URL}}" placeholder="https://..."></label></p>
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <p><button type="submit">更新 URL</button></p>
 </form>
 
@@ -24,6 +25,7 @@
     <label><input type="radio" name="mode" value="generate" checked> 系統產生</label>
     <label><input type="radio" name="mode" value="manual"> 手動輸入 <input type="text" name="secret"></label>
   </p>
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <p><button type="submit" onclick="return confirm('輪替secret沒有過渡期，請確認已準備好同步更新驗簽端設定。');">更新 Secret</button></p>
 </form>
 

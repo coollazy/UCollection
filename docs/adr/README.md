@@ -25,3 +25,4 @@
 | [0013](0013-IndexedDB本機加密儲存參數.md) | IndexedDB 本機加密儲存參數（PBKDF2 600,000 次） | Accepted |
 | [0014](0014-手動改判疊加TOTP.md) | 後台手動改判疊加 RequireFreshTOTP | Accepted |
 | [0015](0015-已歸集地址晚到入帳可見度.md) | 已歸集地址晚到入帳改為可見度標示（推翻v0.24舊決策） | Accepted |
+| [0016](0016-高風險操作每次要求TOTP不設新鮮度窗口.md) | 高風險操作每次要求TOTP驗證碼，取消15分鐘新鮮度窗口（推翻ADR-0011部分決策） | Accepted |

@@ -13,8 +13,12 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	requireSession := func(h http.HandlerFunc) http.Handler {
 		return auth.RequireSession(authDeps)(h)
 	}
-	requireFreshTOTP := func(h http.HandlerFunc) http.Handler {
-		return auth.RequireSession(authDeps)(auth.RequireFreshTOTP(authDeps)(h))
+	// requireTOTPCode's returnTo must be a GET-navigable page, never the
+	// protected POST/DELETE route itself — see auth.RequireTOTPCode's doc
+	// comment for why (found 2026-09-07: a 405 on POST /admin/params/tolerance
+	// after a stale-session step-up redirect, see docs/進度.md).
+	requireTOTPCode := func(h http.HandlerFunc, returnTo func(*http.Request) string) http.Handler {
+		return auth.RequireSession(authDeps)(auth.RequireTOTPCode(authDeps, returnTo)(h))
 	}
 
 	mux.Handle("GET /admin/dashboard", requireSession(dashboardHandler(deps)))
@@ -30,41 +34,43 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("POST /admin/orders/{id}/reverify", requireSession(reverifyHandler(deps)))
 
 	// override-status無伺服器端金額防線、成功即觸發真實終態Webhook，故疊加
-	// RequireFreshTOTP（技術架構設計第11節「權限分級理由」判準(3)）。
-	mux.Handle("POST /admin/orders/{id}/override-status", requireFreshTOTP(overrideStatusHandler(deps)))
+	// RequireTOTPCode（技術架構設計第11節「權限分級理由」判準(3)）。
+	mux.Handle("POST /admin/orders/{id}/override-status", requireTOTPCode(overrideStatusHandler(deps), func(r *http.Request) string {
+		return "/admin/orders/" + r.PathValue("id")
+	}))
 
 	// 代收主錢包設定 (Part 2)：切換使用中代收主錢包＝劫持新收款流向，新增/新增頁/
-	// 恢復使用中三個寫入操作皆疊加RequireFreshTOTP（技術架構設計第11節「權限分級理由」
+	// 恢復使用中三個寫入操作皆疊加RequireTOTPCode（技術架構設計第11節「權限分級理由」
 	// 判準(1)/(2)）。GET .../new本身就是助記詞輸入頁面，比照第10節sign頁先例同等級保護。
 	mux.Handle("GET /admin/master-wallets", requireSession(masterWalletsListHandler(deps)))
-	mux.Handle("GET /admin/master-wallets/new", requireFreshTOTP(masterWalletNewPageHandler(deps)))
-	mux.Handle("POST /admin/master-wallets", requireFreshTOTP(createMasterWalletHandler(deps)))
-	mux.Handle("POST /admin/master-wallets/{id}/reactivate", requireFreshTOTP(reactivateMasterWalletHandler(deps)))
+	mux.Handle("GET /admin/master-wallets/new", requireTOTPCode(masterWalletNewPageHandler(deps), auth.SelfPath))
+	mux.Handle("POST /admin/master-wallets", requireTOTPCode(createMasterWalletHandler(deps), func(*http.Request) string { return "/admin/master-wallets" }))
+	mux.Handle("POST /admin/master-wallets/{id}/reactivate", requireTOTPCode(reactivateMasterWalletHandler(deps), func(*http.Request) string { return "/admin/master-wallets" }))
 
 	// API Key 管理 (Part 2)：重新產生會讓新key/secret冒用商戶身分呼叫API，風險同代收
-	// 主錢包切換，疊加RequireFreshTOTP。
+	// 主錢包切換，疊加RequireTOTPCode。
 	mux.Handle("GET /admin/api-keys", requireSession(apiKeysListHandler(deps)))
-	mux.Handle("POST /admin/api-keys/regenerate", requireFreshTOTP(regenerateAPIKeyHandler(deps)))
+	mux.Handle("POST /admin/api-keys/regenerate", requireTOTPCode(regenerateAPIKeyHandler(deps), func(*http.Request) string { return "/admin/api-keys" }))
 
 	// Webhook 端點設定 (Part 2)：URL被竄改重導向、secret外洩可偽造終態通知，風險同代收
-	// 主錢包切換，疊加RequireFreshTOTP；test僅同步送一次、不落地、不改變任何持久狀態，
+	// 主錢包切換，疊加RequireTOTPCode；test僅同步送一次、不落地、不改變任何持久狀態，
 	// RequireSession即可。
 	mux.Handle("GET /admin/webhook-config", requireSession(webhookConfigPageHandler(deps)))
-	mux.Handle("POST /admin/webhook-config", requireFreshTOTP(updateWebhookURLHandler(deps)))
-	mux.Handle("POST /admin/webhook-config/secret", requireFreshTOTP(updateWebhookSecretHandler(deps)))
+	mux.Handle("POST /admin/webhook-config", requireTOTPCode(updateWebhookURLHandler(deps), func(*http.Request) string { return "/admin/webhook-config" }))
+	mux.Handle("POST /admin/webhook-config/secret", requireTOTPCode(updateWebhookSecretHandler(deps), func(*http.Request) string { return "/admin/webhook-config" }))
 	mux.Handle("POST /admin/webhook-config/test", requireSession(testWebhookHandler(deps)))
 
 	// 參數設定 (Part 2)：訂單有效期／確認等待逾時時間僅影響之後新建立的訂單，
 	// RequireSession即可。金額容許誤差百分比（階段07全系統審查發現）拆到獨立路由
-	// 疊加RequireFreshTOTP——調高此值會讓之後新訂單的短付更容易被系統自動判定為
+	// 疊加RequireTOTPCode——調高此值會讓之後新訂單的短付更容易被系統自動判定為
 	// COMPLETED，攻擊者僅取得session cookie即可誤導商戶財務判斷，風險量級同本節
 	// 「權限分級理由」判準(3)。
 	mux.Handle("GET /admin/params", requireSession(paramsPageHandler(deps)))
 	mux.Handle("POST /admin/params", requireSession(updateParamsHandler(deps)))
-	mux.Handle("POST /admin/params/tolerance", requireFreshTOTP(updateToleranceHandler(deps)))
+	mux.Handle("POST /admin/params/tolerance", requireTOTPCode(updateToleranceHandler(deps), func(*http.Request) string { return "/admin/params" }))
 
 	// 通知歷史查詢與手動重發 (Part 3)：重發已存在、已審過的通知不產生新的業務判斷，
-	// 技術架構設計路由表本節四條全部列RequireSession，不新增RequireFreshTOTP路由。
+	// 技術架構設計路由表本節四條全部列RequireSession，不新增RequireTOTPCode路由。
 	mux.Handle("GET /admin/notifications", requireSession(notificationsListHandler(deps)))
 	mux.Handle("POST /admin/notifications/{id}/resend", requireSession(resendNotificationHandler(deps)))
 
