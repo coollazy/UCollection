@@ -27,7 +27,7 @@
 
   <h2>開始歸集</h2>
   <p>將上方勾選地址的鏈上USDT餘額全額轉入下方目的地地址，下一步會進入簽名頁，需要輸入本代收主錢包助記詞。</p>
-  <p><label>目的地地址 <input type="text" name="destination_address" required></label></p>
+  <p><label>目的地地址 <input type="text" name="destination_address"></label></p>
   <p><button type="submit" formaction="/admin/consolidation/batches">開始歸集</button></p>
 
   <h2>TRX手續費補充</h2>
@@ -36,8 +36,8 @@
     <option value="A1">A1（商戶自認與代收主錢包相關的資金來源）</option>
     <option value="A2">A2（商戶自認完全獨立的錢包）</option>
   </select></label></p>
-  <p><label>來源地址（商戶自行指定，非代收主錢包HD樹衍生地址） <input type="text" name="fee_source_address" required></label></p>
-  <p><label>每筆金額（最小單位） <input type="number" name="amount_per_order" min="1" required></label></p>
+  <p><label>來源地址（商戶自行指定，非代收主錢包HD樹衍生地址） <input type="text" name="fee_source_address"></label></p>
+  <p><label>每筆金額（最小單位） <input type="number" name="amount_per_order" min="1"></label></p>
   <p><button type="submit" formaction="/admin/consolidation/fee-topup-batches">補充手續費</button></p>
   </form>
 {{end}}
