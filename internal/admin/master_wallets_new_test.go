@@ -39,6 +39,14 @@ func TestMasterWalletNewPageHandler_SetsStrictCSP(t *testing.T) {
 	if strings.Contains(got, "unsafe-inline") && !strings.Contains(got, "style-src") {
 		t.Errorf("CSP allows unsafe-inline outside style-src: %q", got)
 	}
+	// 階段07全系統審查發現：此常數的doc comment宣稱「逐字複製」
+	// internal/consolidation.signCSPHeader，但曾經漏掉frame-ancestors
+	// 'none'（clickjacking防護）——這裡是輸入助記詞的頁面，跟簽名頁同等級
+	// 風險，顯式斷言這段存在，避免之後又悄悄漏掉卻只靠字串完全比對測不出來
+	// （完全比對只要兩邊「一起」漏掉同一段就測不出差異）。
+	if !strings.Contains(got, "frame-ancestors 'none'") {
+		t.Errorf("CSP missing frame-ancestors 'none': %q", got)
+	}
 }
 
 func TestCreateMasterWalletHandler_Success(t *testing.T) {
