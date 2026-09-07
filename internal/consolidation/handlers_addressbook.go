@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+
+	"github.com/coollazy/UCollection/internal/audit"
 )
 
 type addressBookPageData struct {
@@ -75,9 +77,19 @@ func addressBookSubmitHandler(deps Deps) http.HandlerFunc {
 		address := r.PostFormValue("address")
 		label := r.PostFormValue("label")
 
+		// 階段07全系統審查發現：此路由本身已疊加RequireFreshTOTP（見routes.go），但
+		// 先前完全沒有稽核紀錄——補上讓新增/改名都留痕。
+		targetType := "address_book_entry"
 		var opErr error
 		if idStr == "" {
-			_, opErr = CreateAddressBookEntry(ctx, deps, address, label)
+			entry, err := CreateAddressBookEntry(ctx, deps, address, label)
+			opErr = err
+			if err == nil {
+				_ = audit.Log(ctx, deps.Pool, "admin", "ADDRESS_BOOK_ENTRY_CREATED", &targetType, &entry.ID, map[string]any{
+					"address": address,
+					"label":   label,
+				})
+			}
 		} else {
 			id, parseErr := strconv.ParseInt(idStr, 10, 64)
 			if parseErr != nil {
@@ -85,6 +97,11 @@ func addressBookSubmitHandler(deps Deps) http.HandlerFunc {
 				return
 			}
 			opErr = RenameAddressBookEntry(ctx, deps, id, label)
+			if opErr == nil {
+				_ = audit.Log(ctx, deps.Pool, "admin", "ADDRESS_BOOK_ENTRY_RENAMED", &targetType, &id, map[string]any{
+					"label": label,
+				})
+			}
 		}
 
 		if opErr != nil {
@@ -105,7 +122,8 @@ func addressBookDeleteHandler(deps Deps) http.HandlerFunc {
 			http.Error(w, "invalid id", http.StatusBadRequest)
 			return
 		}
-		if err := DeleteAddressBookEntry(r.Context(), deps, id); err != nil {
+		ctx := r.Context()
+		if err := DeleteAddressBookEntry(ctx, deps, id); err != nil {
 			if errors.Is(err, errAddressBookEntryNotFound) {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
@@ -113,6 +131,8 @@ func addressBookDeleteHandler(deps Deps) http.HandlerFunc {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		targetType := "address_book_entry"
+		_ = audit.Log(ctx, deps.Pool, "admin", "ADDRESS_BOOK_ENTRY_DELETED", &targetType, &id, nil)
 		w.WriteHeader(http.StatusOK)
 	}
 }

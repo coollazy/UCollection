@@ -55,6 +55,8 @@ func TestAddressBookSubmit_Create(t *testing.T) {
 	if err != nil || len(entries) != 1 || entries[0].Label != "new entry" {
 		t.Fatalf("entries = %+v, err = %v", entries, err)
 	}
+
+	assertAuditCount(t, pool, "ADDRESS_BOOK_ENTRY_CREATED", 1)
 }
 
 func TestAddressBookSubmit_CreateInvalidFormatRedirectsWithError(t *testing.T) {
@@ -102,6 +104,8 @@ func TestAddressBookSubmit_Rename(t *testing.T) {
 	if err != nil || len(entries) != 1 || entries[0].Label != "renamed" {
 		t.Fatalf("entries = %+v, err = %v", entries, err)
 	}
+
+	assertAuditCount(t, pool, "ADDRESS_BOOK_ENTRY_RENAMED", 1)
 }
 
 func TestAddressBookSubmit_RenameNotFoundRedirectsWithError(t *testing.T) {
@@ -145,6 +149,8 @@ func TestAddressBookDelete_Success(t *testing.T) {
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("entries = %+v, err = %v, want empty after delete", entries, err)
 	}
+
+	assertAuditCount(t, pool, "ADDRESS_BOOK_ENTRY_DELETED", 1)
 }
 
 func TestAddressBookDelete_NotFound(t *testing.T) {

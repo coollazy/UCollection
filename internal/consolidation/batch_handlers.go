@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/coollazy/UCollection/internal/audit"
 )
 
 // parseOrderIDs reads the repeated "order_id" checkbox values from a
@@ -91,6 +93,16 @@ func createConsolidationBatchHandler(deps Deps) http.HandlerFunc {
 			return
 		}
 
+		// 階段07全系統審查發現：本操作是資金轉出流程的起手式（本身已疊加
+		// RequireFreshTOTP），但先前完全沒有稽核紀錄——只有後續prepare/broadcast
+		// 兩階段有。補上以涵蓋完整的操作軌跡。
+		targetType := "consolidation_batch"
+		_ = audit.Log(ctx, deps.Pool, "admin", "CONSOLIDATION_BATCH_CREATED", &targetType, &batchID, map[string]any{
+			"master_wallet_id":    masterWalletID,
+			"destination_address": destinationAddress,
+			"order_ids":           orderIDs,
+		})
+
 		http.Redirect(w, r, signRedirectURL("consolidation", batchID, orderIDs), http.StatusSeeOther)
 	}
 }
@@ -150,6 +162,15 @@ func createFeeTopupBatchHandler(deps Deps) http.HandlerFunc {
 			}
 			return
 		}
+
+		targetType := "fee_topup_batch"
+		_ = audit.Log(ctx, deps.Pool, "admin", "FEE_TOPUP_BATCH_CREATED", &targetType, &batchID, map[string]any{
+			"master_wallet_id":   masterWalletID,
+			"fee_source":         feeSource,
+			"fee_source_address": feeSourceAddress,
+			"order_ids":          orderIDs,
+			"amount_per_order":   amountPerOrder,
+		})
 
 		q := url.Values{}
 		q.Set("amount_per_order", strconv.FormatInt(amountPerOrder, 10))

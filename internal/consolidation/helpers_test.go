@@ -55,6 +55,17 @@ func resetDB(t *testing.T, pool *store.Pool) {
 	}
 }
 
+func assertAuditCount(t *testing.T, pool *store.Pool, actionType string, want int) {
+	t.Helper()
+	var got int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_logs WHERE action_type = $1`, actionType).Scan(&got); err != nil {
+		t.Fatalf("count audit_logs(%s): %v", actionType, err)
+	}
+	if got != want {
+		t.Errorf("%s audit_logs count = %d, want %d", actionType, got, want)
+	}
+}
+
 func newMasterWallet(t *testing.T, pool *store.Pool) int64 {
 	t.Helper()
 	var id int64

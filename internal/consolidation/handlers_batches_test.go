@@ -57,6 +57,8 @@ func TestCreateConsolidationBatchHandler_RedirectsToSignPage(t *testing.T) {
 	if batch.MasterWalletID != walletID || batch.DestinationAddress != testDestinationAddress {
 		t.Fatalf("batch = %+v, want wallet=%d destination=%q", batch, walletID, testDestinationAddress)
 	}
+
+	assertAuditCount(t, pool, "CONSOLIDATION_BATCH_CREATED", 1)
 }
 
 func TestCreateConsolidationBatchHandler_InvalidDestinationAddress(t *testing.T) {
@@ -140,6 +142,8 @@ func TestCreateFeeTopupBatchHandler_RedirectsToSignPage(t *testing.T) {
 	if batch.MasterWalletID != walletID || batch.FeeSourceAddress != testSourceAddress {
 		t.Fatalf("batch = %+v, want wallet=%d source=%q", batch, walletID, testSourceAddress)
 	}
+
+	assertAuditCount(t, pool, "FEE_TOPUP_BATCH_CREATED", 1)
 }
 
 func TestCreateFeeTopupBatchHandler_InvalidFeeSource(t *testing.T) {
