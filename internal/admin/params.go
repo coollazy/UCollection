@@ -57,12 +57,16 @@ func paramsPageHandler(deps Deps) http.HandlerFunc {
 }
 
 // updateParamsHandler implements POST /admin/params (技術架構設計第11節：僅影響之
-// 後新建立的訂單；RequireSession即可，不涉及資金/身分驗簽材料外洩風險). 確認等待逾時
-// 時間表單留空時，比照畫面提示文字「預設沿用訂單有效期」直接把validity_seconds的值
-// 寫入該欄位——而不是把它存成NULL：internal/admin/orders_manual_create.go的
-// loadOrderParamDefaults（Part 1既有、已上線的邏輯）把三欄視為「全部設定才算已設定」，
-// 若這裡存NULL會讓它整組被判定成「尚未設定」而擋下所有手動建單/API建單，這不是本頁
-// 「留空」提示想要的效果——UI上的「留空」只是操作便利，寫入DB時仍要有一個確定的數值。
+// 後新建立的訂單；RequireSession即可). 只處理validity_seconds／
+// confirmation_stall_timeout_seconds兩欄——amount_tolerance_percent已拆到
+// updateToleranceHandler(POST /admin/params/tolerance，RequireFreshTOTP)，理由見
+// 該handler註解，這裡刻意不再碰這個欄位，避免兩個handler互相覆蓋彼此的值
+// （UPDATE只SET自己負責的欄位）。確認等待逾時時間表單留空時，比照畫面提示文字
+// 「預設沿用訂單有效期」直接把validity_seconds的值寫入該欄位——而不是把它存成
+// NULL：internal/admin/orders_manual_create.go的loadOrderParamDefaults（Part 1
+// 既有、已上線的邏輯）把三欄視為「全部設定才算已設定」，若這裡存NULL會讓它整組被
+// 判定成「尚未設定」而擋下所有手動建單/API建單，這不是本頁「留空」提示想要的效果
+// ——UI上的「留空」只是操作便利，寫入DB時仍要有一個確定的數值。
 func updateParamsHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -73,12 +77,6 @@ func updateParamsHandler(deps Deps) http.HandlerFunc {
 		validitySeconds, err := strconv.ParseInt(strings.TrimSpace(r.PostFormValue("validity_seconds")), 10, 64)
 		if err != nil || validitySeconds <= 0 {
 			redirectParamsError(w, r, "invalid_validity_seconds")
-			return
-		}
-
-		tolerancePercent, err := strconv.ParseFloat(strings.TrimSpace(r.PostFormValue("amount_tolerance_percent")), 64)
-		if err != nil || tolerancePercent < 0 {
-			redirectParamsError(w, r, "invalid_tolerance_percent")
 			return
 		}
 
@@ -95,9 +93,9 @@ func updateParamsHandler(deps Deps) http.HandlerFunc {
 		ctx := r.Context()
 		_, err = deps.Pool.Exec(ctx, `
 			UPDATE system_params
-			SET validity_seconds = $1, amount_tolerance_percent = $2, confirmation_stall_timeout_seconds = $3, updated_at = now()
+			SET validity_seconds = $1, confirmation_stall_timeout_seconds = $2, updated_at = now()
 			WHERE id = 1
-		`, validitySeconds, tolerancePercent, stallTimeoutSeconds)
+		`, validitySeconds, stallTimeoutSeconds)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -105,8 +103,44 @@ func updateParamsHandler(deps Deps) http.HandlerFunc {
 
 		_ = audit.Log(ctx, deps.Pool, "admin", "PARAMS_CHANGED", nil, nil, map[string]any{
 			"validity_seconds":                   validitySeconds,
-			"amount_tolerance_percent":           tolerancePercent,
 			"confirmation_stall_timeout_seconds": stallTimeoutSeconds,
+		})
+
+		http.Redirect(w, r, "/admin/params?success="+url.QueryEscape(successParamsUpdated), http.StatusSeeOther)
+	}
+}
+
+// updateToleranceHandler implements POST /admin/params/tolerance
+// (RequireFreshTOTP). 階段07全系統審查發現：amount_tolerance_percent原本跟另外
+// 兩個「低風險」參數共用同一個RequireSession路由，但調高這個值會讓「之後所有新
+// 建立的訂單」更容易把短付判定成COMPLETED——攻擊者只要偷到session cookie（不需要
+// 偷到2FA裝置）就能讓商戶誤以為足額收款，符合CLAUDE.md「誤導商戶財務判斷」的
+// RequireFreshTOTP判準，因此拆成獨立路由疊加step-up驗證，其餘兩欄維持原本的
+// RequireSession不變。
+func updateToleranceHandler(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectParamsError(w, r, "bad_request")
+			return
+		}
+
+		tolerancePercent, err := strconv.ParseFloat(strings.TrimSpace(r.PostFormValue("amount_tolerance_percent")), 64)
+		if err != nil || tolerancePercent < 0 {
+			redirectParamsError(w, r, "invalid_tolerance_percent")
+			return
+		}
+
+		ctx := r.Context()
+		_, err = deps.Pool.Exec(ctx, `
+			UPDATE system_params SET amount_tolerance_percent = $1, updated_at = now() WHERE id = 1
+		`, tolerancePercent)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		_ = audit.Log(ctx, deps.Pool, "admin", "AMOUNT_TOLERANCE_CHANGED", nil, nil, map[string]any{
+			"amount_tolerance_percent": tolerancePercent,
 		})
 
 		http.Redirect(w, r, "/admin/params?success="+url.QueryEscape(successParamsUpdated), http.StatusSeeOther)

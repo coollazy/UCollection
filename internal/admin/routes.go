@@ -54,10 +54,14 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("POST /admin/webhook-config/secret", requireFreshTOTP(updateWebhookSecretHandler(deps)))
 	mux.Handle("POST /admin/webhook-config/test", requireSession(testWebhookHandler(deps)))
 
-	// 參數設定 (Part 2)：僅影響之後新建立的訂單，不涉及資金/身分驗簽材料外洩風險，
-	// RequireSession即可。
+	// 參數設定 (Part 2)：訂單有效期／確認等待逾時時間僅影響之後新建立的訂單，
+	// RequireSession即可。金額容許誤差百分比（階段07全系統審查發現）拆到獨立路由
+	// 疊加RequireFreshTOTP——調高此值會讓之後新訂單的短付更容易被系統自動判定為
+	// COMPLETED，攻擊者僅取得session cookie即可誤導商戶財務判斷，風險量級同本節
+	// 「權限分級理由」判準(3)。
 	mux.Handle("GET /admin/params", requireSession(paramsPageHandler(deps)))
 	mux.Handle("POST /admin/params", requireSession(updateParamsHandler(deps)))
+	mux.Handle("POST /admin/params/tolerance", requireFreshTOTP(updateToleranceHandler(deps)))
 
 	// 通知歷史查詢與手動重發 (Part 3)：重發已存在、已審過的通知不產生新的業務判斷，
 	// 技術架構設計路由表本節四條全部列RequireSession，不新增RequireFreshTOTP路由。
