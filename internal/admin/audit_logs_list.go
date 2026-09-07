@@ -10,8 +10,18 @@ import (
 
 const auditLogsPageSize = 50
 
+// auditLogEntryView wraps audit.Entry with a plain bool the template can
+// branch on — html/template's eq builtin doesn't dereference *string (it
+// only unwraps interface{}, not real pointers), so comparing
+// .TargetType == "order" straight in the template fails at render time.
+// Precomputing the comparison here keeps that quirk out of the template.
+type auditLogEntryView struct {
+	audit.Entry
+	IsOrderTarget bool
+}
+
 type auditLogsListPageData struct {
-	Entries    []audit.Entry
+	Entries    []auditLogEntryView
 	Filter     audit.Filter
 	Page       int
 	TotalPages int
@@ -63,8 +73,13 @@ func auditLogsListHandler(deps Deps) http.HandlerFunc {
 			totalPages = 1
 		}
 
+		views := make([]auditLogEntryView, len(entries))
+		for i, e := range entries {
+			views[i] = auditLogEntryView{Entry: e, IsOrderTarget: e.TargetType != nil && *e.TargetType == "order"}
+		}
+
 		render(w, http.StatusOK, "audit_logs.html", auditLogsListPageData{
-			Entries:    entries,
+			Entries:    views,
 			Filter:     f,
 			Page:       page,
 			TotalPages: totalPages,

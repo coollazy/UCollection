@@ -17,8 +17,11 @@ type DashboardStats struct {
 	// automated monitoring, not abnormal.
 	PendingCount int
 	// AbnormalCount is OVERPAID + CONFIRMATION_STALLED + (EXPIRED that
-	// received at least one incoming_transactions row) — orders that need
-	// merchant review (第11節：判準是「是否需要商戶查證/處理」，不是「是否為終態」).
+	// received at least one incoming_transactions row) + (COMPLETED that has
+	// a system-flagged late finality confirmation after going terminal —
+	// see internal/scanner/status.go's logLateFinalityConfirmation, 階段06
+	// 情境E) — orders that need merchant review (第11節：判準是「是否需要商戶查證/
+	// 處理」，不是「是否為終態」).
 	AbnormalCount int
 }
 
@@ -50,7 +53,12 @@ func GetDashboardStats(ctx context.Context, pool *store.Pool) (DashboardStats, e
 		FROM orders o
 		WHERE o.status IN ($1, $2)
 		   OR (o.status = $3 AND EXISTS (SELECT 1 FROM incoming_transactions it WHERE it.order_id = o.id))
-	`, StatusOverpaid, StatusConfirmationStalled, StatusExpired).Scan(&stats.AbnormalCount)
+		   OR (o.status = $4 AND EXISTS (
+		       SELECT 1 FROM audit_logs a
+		       WHERE a.target_type = 'order' AND a.target_id = o.id
+		         AND a.action_type = 'ILLEGAL_STATE_TRANSITION' AND a.actor = 'system'
+		   ))
+	`, StatusOverpaid, StatusConfirmationStalled, StatusExpired, StatusCompleted).Scan(&stats.AbnormalCount)
 	if err != nil {
 		return DashboardStats{}, err
 	}

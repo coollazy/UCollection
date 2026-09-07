@@ -11,7 +11,7 @@
   <tr>
     <td>{{.Stats.TotalCollected}}</td>
     <td>{{.Stats.PendingCount}}</td>
-    <td>{{.Stats.AbnormalCount}}</td>
+    <td><a href="/admin/audit-logs?action_type=ILLEGAL_STATE_TRANSITION&actor=system">{{.Stats.AbnormalCount}}</a></td>
   </tr>
 </table>
 

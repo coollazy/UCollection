@@ -48,4 +48,7 @@ func TestAuditLogsListHandler_FiltersAndShowsDetail(t *testing.T) {
 	if !strings.Contains(text, "共 1 筆") {
 		t.Errorf("body missing correct total count, got: %s", text)
 	}
+	if !strings.Contains(text, `<a href="/admin/orders/7">7</a>`) {
+		t.Errorf("body missing order link for target_type=order, got: %s", text)
+	}
 }

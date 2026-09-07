@@ -42,7 +42,7 @@ func testPool(t *testing.T) *store.Pool {
 func resetDB(t *testing.T, pool *store.Pool) {
 	t.Helper()
 	ctx := context.Background()
-	_, err := pool.Exec(ctx, `TRUNCATE master_wallets, orders, order_state_transitions, incoming_transactions, webhook_deliveries RESTART IDENTITY CASCADE`)
+	_, err := pool.Exec(ctx, `TRUNCATE master_wallets, orders, order_state_transitions, incoming_transactions, webhook_deliveries, audit_logs RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset db: %v", err)
 	}
