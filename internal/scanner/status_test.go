@@ -15,8 +15,15 @@ func TestGetSyncStatus(t *testing.T) {
 
 	nowMs := time.Now().UnixMilli()
 	seedCheckpoint(t, pool, nowMs, nowMs)
-	syncedAt := time.Now().Add(-5 * time.Second)
-	finalityAt := time.Now().Add(-10 * time.Second)
+	// Truncate to microsecond precision before the round-trip: PostgreSQL's
+	// timestamptz only stores microseconds, so a time.Time carrying Go's
+	// full nanosecond resolution would come back with its sub-microsecond
+	// remainder dropped and fail an exact Equal() below. Truncating here
+	// means there's nothing left to drop, so the comparison isn't at the
+	// mercy of whichever platform's clock happened to produce a non-zero
+	// remainder (observed on Linux CI, never on this machine's clock).
+	syncedAt := time.Now().Add(-5 * time.Second).Truncate(time.Microsecond)
+	finalityAt := time.Now().Add(-10 * time.Second).Truncate(time.Microsecond)
 	setCheckpointHeartbeats(t, pool, syncedAt, finalityAt)
 
 	got, err := GetSyncStatus(ctx, pool)

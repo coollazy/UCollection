@@ -13,6 +13,7 @@ import (
 
 	"github.com/coollazy/UCollection/internal/auth"
 	"github.com/coollazy/UCollection/internal/order"
+	"github.com/coollazy/UCollection/internal/scanner"
 	"github.com/coollazy/UCollection/internal/store"
 )
 
@@ -59,6 +60,17 @@ func resetDB(t *testing.T, pool *store.Pool) {
 		WHERE id = 1
 	`); err != nil {
 		t.Fatalf("seed system_params: %v", err)
+	}
+	// dashboardHandler reads scan_checkpoint via scanner.GetSyncStatus; in
+	// production this row is guaranteed to exist before the HTTP server
+	// accepts traffic (main.go calls scanner.EnsureCheckpoint before
+	// ListenAndServe). resetDB doesn't truncate scan_checkpoint (it's not in
+	// this package's TRUNCATE list above), so mirror that same guarantee
+	// here instead of relying on some other package's test having left a
+	// row behind — idempotent (ON CONFLICT DO NOTHING), safe to call every
+	// reset.
+	if err := scanner.EnsureCheckpoint(context.Background(), pool); err != nil {
+		t.Fatalf("ensure scan_checkpoint: %v", err)
 	}
 }
 
