@@ -2,16 +2,20 @@ package consolidation
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"strconv"
 	"testing"
 
 	"github.com/coollazy/UCollection/internal/order"
 	"github.com/coollazy/UCollection/internal/store"
 )
 
-func accountBalanceFixture(usdtBalance int64) string {
-	return `{"data":[{"address":"41xxx","trc20":[{"` + testUSDTContract + `":"` + strconv.FormatInt(usdtBalance, 10) + `"}]}],"success":true,"meta":{}}`
+// constantContractBalanceFixture mirrors a triggerconstantcontract response
+// to a balanceOf(address) call (see internal/tronclient/balance.go) —
+// TRC20Balance now queries the contract directly instead of GET
+// /v1/accounts/{address}, so mocks return this shape regardless of address.
+func constantContractBalanceFixture(usdtBalance int64) string {
+	return fmt.Sprintf(`{"result":{"result":true},"constant_result":["%064x"]}`, usdtBalance)
 }
 
 // forceOrderStatus directly overwrites orders.status — this package doesn't
@@ -31,13 +35,13 @@ func TestListPendingConsolidation_FiltersZeroBalance(t *testing.T) {
 	resetDB(t, pool)
 	walletID := newMasterWallet(t, pool)
 	o1 := newOrder(t, pool, walletID, "pending-1")
-	o2 := newOrder(t, pool, walletID, "pending-2")
+	newOrder(t, pool, walletID, "pending-2")
 
 	mock := newMockTronGrid()
 	// Order of ListPendingConsolidation's candidates is by id ascending
 	// (order.ListPendingConsolidation), so o1 then o2.
-	mock.enqueue("/v1/accounts/"+o1.Address, http.StatusOK, accountBalanceFixture(500))
-	mock.enqueue("/v1/accounts/"+o2.Address, http.StatusOK, `{"data":[],"success":true,"meta":{}}`)
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(500))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(0))
 	tc := mock.start(t)
 
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
@@ -59,7 +63,7 @@ func TestListPendingConsolidation_OverTargetFlag(t *testing.T) {
 
 	mock := newMockTronGrid()
 	// o.TargetAmount is 100_000000 (see newOrder); use a balance above it.
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(150_000000))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(150_000000))
 	tc := mock.start(t)
 
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}

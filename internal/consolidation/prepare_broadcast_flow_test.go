@@ -19,7 +19,7 @@ func TestConsolidationPrepareAndBroadcast_Success(t *testing.T) {
 	o := newOrder(t, pool, walletID, "flow-success")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(88888))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(88888))
 	mock.enqueue("/wallet/triggersmartcontract", http.StatusOK, `{"transaction":{"txID":"tx-success-1","raw_data_hex":"aa","visible":true},"result":{"result":true}}`)
 	mock.enqueue("/wallet/broadcasttransaction", http.StatusOK, `{"result":true,"txid":"tx-success-1"}`)
 	tc := mock.start(t)
@@ -132,7 +132,7 @@ func TestConsolidationPrepare_NoBalanceRejected(t *testing.T) {
 	o := newOrder(t, pool, walletID, "no-balance")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, `{"data":[],"success":true,"meta":{}}`)
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(0))
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
@@ -157,7 +157,7 @@ func TestConsolidationBroadcast_ItemNotPendingRejected(t *testing.T) {
 	o := newOrder(t, pool, walletID, "double-broadcast")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(1000))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(1000))
 	mock.enqueue("/wallet/triggersmartcontract", http.StatusOK, `{"transaction":{"txID":"tx-double","raw_data_hex":"aa","visible":true},"result":{"result":true}}`)
 	mock.enqueue("/wallet/broadcasttransaction", http.StatusOK, `{"result":true,"txid":"tx-double"}`)
 	tc := mock.start(t)
@@ -203,7 +203,7 @@ func TestConsolidationBroadcast_TxIDMismatchRejected(t *testing.T) {
 	o := newOrder(t, pool, walletID, "txid-mismatch")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(1000))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(1000))
 	mock.enqueue("/wallet/triggersmartcontract", http.StatusOK, `{"transaction":{"txID":"tx-real","raw_data_hex":"aa","visible":true},"result":{"result":true}}`)
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
@@ -245,7 +245,7 @@ func TestConsolidationBroadcast_ExplicitRejectionMarksFailed(t *testing.T) {
 	o := newOrder(t, pool, walletID, "explicit-reject")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(1000))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(1000))
 	mock.enqueue("/wallet/triggersmartcontract", http.StatusOK, `{"transaction":{"txID":"tx-rejected","raw_data_hex":"aa","visible":true},"result":{"result":true}}`)
 	mock.enqueue("/wallet/broadcasttransaction", http.StatusOK, `{"code":"SIGERROR","message":"bad signature","txid":"tx-rejected"}`)
 	tc := mock.start(t)
@@ -288,7 +288,7 @@ func TestConsolidationBroadcast_NetworkFailureLeavesBroadcasting(t *testing.T) {
 	o := newOrder(t, pool, walletID, "network-failure")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(1000))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(1000))
 	mock.enqueue("/wallet/triggersmartcontract", http.StatusOK, `{"transaction":{"txID":"tx-network-fail","raw_data_hex":"aa","visible":true},"result":{"result":true}}`)
 	// Deliberately do NOT enqueue a /wallet/broadcasttransaction response —
 	// mockTronGrid returns 500 with no body for unqueued paths, which
@@ -350,14 +350,14 @@ func TestConsolidationBroadcast_TrueNetworkFailureLeavesBroadcasting(t *testing.
 	o := newOrder(t, pool, walletID, "true-network-failure")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasPrefix(r.URL.Path, "/v1/accounts/"):
+		switch r.URL.Path {
+		case "/wallet/triggerconstantcontract":
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(accountBalanceFixture(1000)))
-		case r.URL.Path == "/wallet/triggersmartcontract":
+			_, _ = w.Write([]byte(constantContractBalanceFixture(1000)))
+		case "/wallet/triggersmartcontract":
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"transaction":{"txID":"tx-true-network-fail","raw_data_hex":"aa","visible":true},"result":{"result":true}}`))
-		case r.URL.Path == "/wallet/broadcasttransaction":
+		case "/wallet/broadcasttransaction":
 			hj, ok := w.(http.Hijacker)
 			if !ok {
 				t.Fatal("ResponseWriter does not support hijacking")

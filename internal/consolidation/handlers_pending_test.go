@@ -33,7 +33,7 @@ func TestPendingListPage_SingleWalletSkipsPicker(t *testing.T) {
 	o := newOrder(t, pool, walletID, "single-wallet")
 
 	mock := newMockTronGrid()
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, accountBalanceFixture(500))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(500))
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
@@ -79,7 +79,7 @@ func TestPendingListPage_TriggersReconcile(t *testing.T) {
 
 	mock := newMockTronGrid()
 	mock.enqueue("/wallet/gettransactioninfobyid", http.StatusOK, `{"id":"tx-page-load","blockNumber":1,"receipt":{"result":"SUCCESS"}}`)
-	mock.enqueue("/v1/accounts/"+o.Address, http.StatusOK, `{"data":[],"success":true,"meta":{}}`)
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(0))
 	tc := mock.start(t)
 	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
