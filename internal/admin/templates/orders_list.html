@@ -49,6 +49,14 @@
   {{if .HasNext}}<button type="submit" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
 </form>
 
+<form method="get" action="/admin/export/orders">
+  <input type="hidden" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}">
+  <input type="hidden" name="address" value="{{.Filter.Address}}">
+  {{range .Filter.Statuses}}<input type="hidden" name="status" value="{{.}}">{{end}}
+  <button type="submit" name="format" value="csv">匯出CSV</button>
+  <button type="submit" name="format" value="xlsx">匯出Excel</button>
+</form>
+
 <h2>手動建單</h2>
 <form method="post" action="/admin/orders">
   <p><label>訂單編號（自動產生，可自行覆蓋） <input type="text" name="merchant_order_no" value="{{.NewOrderMerchantOrderNo}}"></label></p>
