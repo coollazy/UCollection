@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>歸集地址簿 - UCollection 後台</title></head>
 <body>
 <h1>歸集地址簿</h1>
-<p><a href="/admin/consolidation">回待歸集列表</a></p>
+{{template "nav" .}}
 {{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 

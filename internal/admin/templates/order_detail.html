@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>訂單明細 #{{.Order.ID}} - UCollection 後台</title></head>
 <body>
 <h1>訂單明細 #{{.Order.ID}}</h1>
-<p><a href="/admin/orders">回訂單列表</a></p>
+{{template "nav" .}}
 {{if .Flash}}<p style="color:green">操作成功（{{.Flash}}）</p>{{end}}
 {{if .FlashError}}<p style="color:red">操作失敗（{{.FlashError}}）</p>{{end}}
 {{if .TOTPReverifiedNotice}}<p style="color:blue">{{.TOTPReverifiedNotice}}</p>{{end}}

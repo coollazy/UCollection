@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>通知歷史 - UCollection 後台</title></head>
 <body>
 <h1>通知歷史</h1>
-<p><a href="/admin/dashboard">回儀表板</a></p>
+{{template "nav" .}}
 {{if .Flash}}<p style="color:green">{{.Flash}}</p>{{end}}
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
 

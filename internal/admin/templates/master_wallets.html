@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>代收主錢包 - UCollection 後台</title></head>
 <body>
 <h1>代收主錢包</h1>
-<p><a href="/admin/dashboard">回儀表板</a></p>
+{{template "nav" .}}
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 

@@ -3,6 +3,7 @@
 <head><meta charset="utf-8"><title>待歸集地址列表 - UCollection 後台</title></head>
 <body>
 <h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
+{{template "nav" .}}
 <p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a></p>
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 {{if not .Entries}}
