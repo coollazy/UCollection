@@ -16,8 +16,8 @@
   <tr><th>衍生索引</th><td>{{.Order.DerivationIndex}}</td></tr>
   <tr><th>地址</th><td>{{.Order.Address}}</td></tr>
   <tr><th>狀態</th><td>{{.Order.Status}}</td></tr>
-  <tr><th>目標金額（最小單位）</th><td>{{.Order.TargetAmount}}</td></tr>
-  <tr><th>容許區間（最小單位）</th><td>{{.Order.AmountLowerBound}} ~ {{.Order.AmountUpperBound}}</td></tr>
+  <tr><th>目標金額（USDT）</th><td>{{amt .Order.TargetAmount}}</td></tr>
+  <tr><th>容許區間（USDT）</th><td>{{amt .Order.AmountLowerBound}} ~ {{amt .Order.AmountUpperBound}}</td></tr>
   <tr><th>到期時間</th><td>{{.Order.ExpiresAt}}</td></tr>
   <tr><th>歸集狀態</th><td>{{.Order.ConsolidationStatus}}</td></tr>
   <tr><th>建立時間</th><td>{{.Order.CreatedAt}}</td></tr>
@@ -33,9 +33,9 @@
 
 <h2>入帳明細</h2>
 <table border="1" cellpadding="4">
-  <tr><th>tx_hash</th><th>log_index</th><th>金額（最小單位）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
+  <tr><th>tx_hash</th><th>log_index</th><th>金額（USDT）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
   {{range .IncomingTransactions}}
-  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{.Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{amt .Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{.CreatedAt}}</td></tr>
   {{end}}
 </table>
 
@@ -55,9 +55,9 @@
 {{if .ConsolidationItems}}
 <h2>歸集記錄</h2>
 <table border="1" cellpadding="4">
-  <tr><th>批次ID</th><th>金額（最小單位）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+  <tr><th>批次ID</th><th>金額（USDT）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .ConsolidationItems}}
-  <tr><td>{{.BatchID}}</td><td>{{.Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
   {{end}}
 </table>
 {{end}}
@@ -65,9 +65,9 @@
 {{if .FeeTopupItems}}
 <h2>TRX 手續費儲值記錄</h2>
 <table border="1" cellpadding="4">
-  <tr><th>批次ID</th><th>金額（最小單位）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+  <tr><th>批次ID</th><th>金額（TRX）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .FeeTopupItems}}
-  <tr><td>{{.BatchID}}</td><td>{{.Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
   {{end}}
 </table>
 {{end}}

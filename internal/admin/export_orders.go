@@ -29,7 +29,7 @@ const exportMaxRows = 100000
 func exceedsExportCap(total int) bool { return total > exportMaxRows }
 
 var exportColumnHeaders = []string{
-	"訂單ID", "merchant_order_no", "地址", "代收主錢包ID", "目標金額", "已確認累計金額", "狀態", "建立時間", "完成時間",
+	"訂單ID", "merchant_order_no", "地址", "代收主錢包ID", "目標金額(USDT)", "已確認累計金額(USDT)", "狀態", "建立時間", "完成時間",
 }
 
 // exportOrdersHandler implements GET /admin/export/orders?format=csv|xlsx
@@ -79,7 +79,8 @@ func exportOrdersHandler(deps Deps) http.HandlerFunc {
 
 // exportRow is one flattened output row — TargetAmount/ConfirmedAmount stay
 // int64 minimum-unit integers all the way to the writer (CLAUDE.md安全鐵律6),
-// formatted to a display string only at the very last step in each writer.
+// formatted to a human-readable USDT decimal string only at the very last
+// step in each writer (formatMicroAmount, same helper the HTML templates use).
 type exportRow struct {
 	OrderID         int64
 	MerchantOrderNo string
@@ -165,8 +166,8 @@ func rowToStrings(row exportRow) []string {
 		row.MerchantOrderNo,
 		row.Address,
 		strconv.FormatInt(row.MasterWalletID, 10),
-		strconv.FormatInt(row.TargetAmount, 10),
-		strconv.FormatInt(row.ConfirmedAmount, 10),
+		formatMicroAmount(row.TargetAmount),
+		formatMicroAmount(row.ConfirmedAmount),
 		row.Status,
 		formatExportTime(row.CreatedAt),
 		completed,
@@ -237,7 +238,7 @@ func exportOrdersXLSX(ctx context.Context, w http.ResponseWriter, pool *store.Po
 		}
 		return sw.SetRow(cell, []any{
 			row.OrderID, row.MerchantOrderNo, row.Address, row.MasterWalletID,
-			row.TargetAmount, row.ConfirmedAmount, row.Status, formatExportTime(row.CreatedAt), completed,
+			formatMicroAmount(row.TargetAmount), formatMicroAmount(row.ConfirmedAmount), row.Status, formatExportTime(row.CreatedAt), completed,
 		})
 	})
 	if err != nil {

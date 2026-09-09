@@ -72,8 +72,8 @@ func TestExportOrdersHandler_CSV(t *testing.T) {
 	if !ok {
 		t.Fatalf("order 1 row missing, got: %v", records)
 	}
-	if rec1[5] != "40000000" { // 已確認累計金額 column
-		t.Errorf("order1 confirmed amount = %q, want 40000000", rec1[5])
+	if rec1[5] != "40" { // 已確認累計金額 column, formatted as USDT decimal (40_000000 smallest units)
+		t.Errorf("order1 confirmed amount = %q, want 40", rec1[5])
 	}
 	if rec1[8] != "" { // 完成時間 column, non-terminal must be blank
 		t.Errorf("order1 completed time = %q, want blank (non-terminal PENDING)", rec1[8])

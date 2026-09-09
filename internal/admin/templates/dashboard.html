@@ -7,9 +7,9 @@
 
 <h2>統計</h2>
 <table border="1" cellpadding="4">
-  <tr><th>總收款金額（最小單位）</th><th>待處理訂單數</th><th>異常訂單數</th></tr>
+  <tr><th>總收款金額（USDT）</th><th>待處理訂單數</th><th>異常訂單數</th></tr>
   <tr>
-    <td>{{.Stats.TotalCollected}}</td>
+    <td>{{amt .Stats.TotalCollected}}</td>
     <td>{{.Stats.PendingCount}}</td>
     <td><a href="/admin/audit-logs?action_type=ILLEGAL_STATE_TRANSITION&actor=system">{{.Stats.AbnormalCount}}</a></td>
   </tr>

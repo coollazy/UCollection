@@ -28,14 +28,14 @@
 <p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
 
 <table border="1" cellpadding="4">
-  <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th>目標金額（最小單位）</th><th>建立時間</th></tr>
+  <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th>目標金額（USDT）</th><th>建立時間</th></tr>
   {{range .Orders}}
   <tr>
     <td><a href="/admin/orders/{{.ID}}">{{.ID}}</a></td>
     <td>{{.MerchantOrderNo}}</td>
     <td>{{.Address}}</td>
     <td>{{.Status}}</td>
-    <td>{{.TargetAmount}}</td>
+    <td>{{amt .TargetAmount}}</td>
     <td>{{.CreatedAt}}</td>
   </tr>
   {{end}}
