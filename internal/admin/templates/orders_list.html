@@ -36,7 +36,7 @@
     <td>{{.Address}}</td>
     <td>{{.Status}}</td>
     <td>{{amt .TargetAmount}}</td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
   </tr>
   {{end}}
 </table>
@@ -63,5 +63,6 @@
   <p><label>目標金額（USDT，最多6位小數） <input type="text" name="target_amount" required></label></p>
   <p><button type="submit">建立訂單</button></p>
 </form>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

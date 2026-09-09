@@ -18,16 +18,16 @@
   <tr><th>狀態</th><td>{{.Order.Status}}</td></tr>
   <tr><th>目標金額（USDT）</th><td>{{amt .Order.TargetAmount}}</td></tr>
   <tr><th>容許區間（USDT）</th><td>{{amt .Order.AmountLowerBound}} ~ {{amt .Order.AmountUpperBound}}</td></tr>
-  <tr><th>到期時間</th><td>{{.Order.ExpiresAt}}</td></tr>
+  <tr><th>到期時間</th><td>{{ts .Order.ExpiresAt}}</td></tr>
   <tr><th>歸集狀態</th><td>{{.Order.ConsolidationStatus}}</td></tr>
-  <tr><th>建立時間</th><td>{{.Order.CreatedAt}}</td></tr>
+  <tr><th>建立時間</th><td>{{ts .Order.CreatedAt}}</td></tr>
 </table>
 
 <h2>狀態變更歷史</h2>
 <table border="1" cellpadding="4">
   <tr><th>時間</th><th>從</th><th>到</th><th>操作者</th><th>備註</th></tr>
   {{range .Transitions}}
-  <tr><td>{{.CreatedAt}}</td><td>{{.FromStatus}}</td><td>{{.ToStatus}}</td><td>{{.ChangedBy}}</td><td>{{.Note}}</td></tr>
+  <tr><td>{{ts .CreatedAt}}</td><td>{{.FromStatus}}</td><td>{{.ToStatus}}</td><td>{{.ChangedBy}}</td><td>{{.Note}}</td></tr>
   {{end}}
 </table>
 
@@ -35,7 +35,7 @@
 <table border="1" cellpadding="4">
   <tr><th>tx_hash</th><th>log_index</th><th>金額（USDT）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
   {{range .IncomingTransactions}}
-  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{amt .Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{amt .Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
 
@@ -45,7 +45,7 @@
 <table border="1" cellpadding="4">
   <tr><th>#</th><th>HTTP狀態</th><th>回應內容</th><th>時間</th><th>觸發來源</th></tr>
   {{range .Attempts}}
-  <tr><td>{{.AttemptNo}}</td><td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}（網路層失敗）{{end}}</td><td>{{if .ResponseBody}}{{.ResponseBody}}{{end}}</td><td>{{.AttemptedAt}}</td><td>{{.TriggeredBy}}</td></tr>
+  <tr><td>{{.AttemptNo}}</td><td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}（網路層失敗）{{end}}</td><td>{{if .ResponseBody}}{{.ResponseBody}}{{end}}</td><td>{{ts .AttemptedAt}}</td><td>{{.TriggeredBy}}</td></tr>
   {{end}}
 </table>
 {{else}}
@@ -57,7 +57,7 @@
 <table border="1" cellpadding="4">
   <tr><th>批次ID</th><th>金額（USDT）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .ConsolidationItems}}
-  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
 {{end}}
@@ -67,7 +67,7 @@
 <table border="1" cellpadding="4">
   <tr><th>批次ID</th><th>金額（TRX）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .FeeTopupItems}}
-  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{.CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
 {{end}}
@@ -91,5 +91,6 @@
   <p><button type="submit">送出改判</button></p>
 </form>
 {{end}}
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

@@ -17,10 +17,11 @@
   {{range .Keys}}
   <tr>
     <td>{{.ID}}</td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
     <td>{{if .Revoked}}已作廢{{else}}使用中{{end}}</td>
   </tr>
   {{end}}
 </table>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

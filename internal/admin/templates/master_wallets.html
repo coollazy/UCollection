@@ -20,7 +20,7 @@
       {{if eq .Status "inactive"}}<br><small>已停用不代表資金不安全，僅表示不再分配新地址</small>{{end}}
     </td>
     <td>{{.LastDerivedIndex}}</td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
     <td>
       {{if eq .Status "inactive"}}
       <form method="post" action="/admin/master-wallets/{{.ID}}/reactivate" onsubmit="return confirm('確定要將此代收主錢包恢復使用中嗎？目前使用中的代收主錢包將轉為已停用。');">
@@ -32,5 +32,6 @@
   </tr>
   {{end}}
 </table>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

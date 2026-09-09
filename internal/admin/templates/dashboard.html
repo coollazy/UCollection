@@ -17,8 +17,8 @@
 
 <h2>鏈上監控同步狀態</h2>
 <p>
-  上次成功同步（事件掃描）：{{if .Sync.LastSyncedAt}}{{.Sync.LastSyncedAt}}{{else}}尚未同步{{end}}<br>
-  上次成功同步（最終確定判定）：{{if .Sync.LastFinalitySyncedAt}}{{.Sync.LastFinalitySyncedAt}}{{else}}尚未同步{{end}}<br>
+  上次成功同步（事件掃描）：{{if .Sync.LastSyncedAt}}{{ts .Sync.LastSyncedAt}}{{else}}尚未同步{{end}}<br>
+  上次成功同步（最終確定判定）：{{if .Sync.LastFinalitySyncedAt}}{{ts .Sync.LastFinalitySyncedAt}}{{else}}尚未同步{{end}}<br>
   {{if gt .StuckCount 0}}
     <strong>有 {{.StuckCount}} 筆訂單卡在守門條件、尚未能判定EXPIRED/CONFIRMATION_STALLED</strong>
   {{else}}
@@ -31,5 +31,6 @@
   失敗中/待重試：{{.WebhookFailing}} 筆<br>
   待設定（尚未設定 webhook_url/secret）：{{.WebhookAwaitingConfig}} 筆
 </p>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

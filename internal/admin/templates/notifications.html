@@ -34,11 +34,11 @@
     <td>{{.EventType}}</td>
     <td>{{.Status}}</td>
     <td>{{.AttemptCount}}</td>
-    <td>{{if .NextRetryAt}}{{.NextRetryAt}}{{end}}</td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .NextRetryAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
     <td>
       {{range .Attempts}}
-      #{{.AttemptNo}} {{.TriggeredBy}} {{if .HTTPStatus}}HTTP{{.HTTPStatus}}{{else}}(連線失敗){{end}} {{.AttemptedAt}}<br>
+      #{{.AttemptNo}} {{.TriggeredBy}} {{if .HTTPStatus}}HTTP{{.HTTPStatus}}{{else}}(連線失敗){{end}} {{ts .AttemptedAt}}<br>
       {{end}}
     </td>
     <td>
@@ -54,5 +54,6 @@
   {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
   {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
 </p>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

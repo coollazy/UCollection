@@ -30,7 +30,7 @@
     <td>{{if .TargetType}}{{.TargetType}}{{end}}</td>
     <td>{{if .TargetID}}{{if .IsOrderTarget}}<a href="/admin/orders/{{.TargetID}}">{{.TargetID}}</a>{{else}}{{.TargetID}}{{end}}{{end}}</td>
     <td>{{range $k, $v := .Detail}}{{$k}}={{$v}} {{end}}</td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
   </tr>
   {{end}}
 </table>
@@ -39,5 +39,6 @@
   {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
   {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
 </p>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@
         <button type="submit">改名</button>
       </form>
     </td>
-    <td>{{.CreatedAt}}</td>
+    <td>{{ts .CreatedAt}}</td>
     <td><button type="button" onclick="deleteAddressBookEntry({{.ID}})">刪除</button></td>
   </tr>
   {{end}}
@@ -37,5 +37,6 @@
 </form>
 
 <script src="/static/js/admin.js"></script>
+<script src="/static/js/localtime.js"></script>
 </body>
 </html>
