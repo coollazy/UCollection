@@ -23,6 +23,13 @@ type ordersListPageData struct {
 	SelectedStatus          map[order.Status]bool
 	NewOrderMerchantOrderNo string
 	FlashError              string
+
+	// Raw*：直接保留使用者輸入的原始 query 字串，供頂部篩選表單回填、以及翻頁/
+	// 匯出表單的 hidden 欄位帶出。刻意不從已解析的 Filter 反推——CreatedTo 在
+	// parseOrderListFilter 被 +24h、且 *time.Time 無法直接填回 <input type="date">。
+	RawMasterWalletID string
+	RawCreatedFrom    string
+	RawCreatedTo      string
 }
 
 // ordersListHandler implements GET /admin/orders (技術架構設計第11節「訂單列表與
@@ -71,6 +78,9 @@ func ordersListHandler(deps Deps) http.HandlerFunc {
 			SelectedStatus:          selected,
 			NewOrderMerchantOrderNo: generateManualOrderNo(),
 			FlashError:              q.Get("flash_error"),
+			RawMasterWalletID:       q.Get("master_wallet_id"),
+			RawCreatedFrom:          q.Get("created_from"),
+			RawCreatedTo:            q.Get("created_to"),
 		})
 	}
 }

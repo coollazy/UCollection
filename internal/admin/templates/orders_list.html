@@ -18,9 +18,9 @@
     <label>地址（精確比對） <input type="text" name="address" value="{{.Filter.Address}}"></label>
   </p>
   <p>
-    <label>代收主錢包ID <input type="number" name="master_wallet_id"></label>
-    <label>建立時間從 <input type="date" name="created_from"></label>
-    <label>到 <input type="date" name="created_to"></label>
+    <label>代收主錢包ID <input type="number" name="master_wallet_id" value="{{.RawMasterWalletID}}"></label>
+    <label>建立時間從 <input type="date" name="created_from" value="{{.RawCreatedFrom}}"></label>
+    <label>到 <input type="date" name="created_to" value="{{.RawCreatedTo}}"></label>
   </p>
   <p><button type="submit">查詢</button></p>
 </form>
@@ -45,6 +45,9 @@
   <input type="hidden" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}">
   <input type="hidden" name="address" value="{{.Filter.Address}}">
   {{range .Filter.Statuses}}<input type="hidden" name="status" value="{{.}}">{{end}}
+  <input type="hidden" name="master_wallet_id" value="{{.RawMasterWalletID}}">
+  <input type="hidden" name="created_from" value="{{.RawCreatedFrom}}">
+  <input type="hidden" name="created_to" value="{{.RawCreatedTo}}">
   {{if .HasPrev}}<button type="submit" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
   {{if .HasNext}}<button type="submit" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
 </form>
@@ -53,6 +56,9 @@
   <input type="hidden" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}">
   <input type="hidden" name="address" value="{{.Filter.Address}}">
   {{range .Filter.Statuses}}<input type="hidden" name="status" value="{{.}}">{{end}}
+  <input type="hidden" name="master_wallet_id" value="{{.RawMasterWalletID}}">
+  <input type="hidden" name="created_from" value="{{.RawCreatedFrom}}">
+  <input type="hidden" name="created_to" value="{{.RawCreatedTo}}">
   <button type="submit" name="format" value="csv">匯出CSV</button>
   <button type="submit" name="format" value="xlsx">匯出Excel</button>
 </form>
