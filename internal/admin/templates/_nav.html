@@ -1,15 +1,19 @@
 {{define "nav"}}<nav>
   <a href="/admin/dashboard">儀表板</a> ｜
   <a href="/admin/orders">訂單列表</a> ｜
-  <a href="/admin/master-wallets">代收主錢包</a> ｜
-  <a href="/admin/api-keys">API Key管理</a> ｜
-  <a href="/admin/webhook-config">Webhook設定</a> ｜
-  <a href="/admin/params">參數設定</a> ｜
   <a href="/admin/consolidation">手動歸集</a> ｜
   <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜
   <a href="/admin/notifications">通知歷史</a> ｜
   <a href="/admin/audit-logs">稽核日誌</a> ｜
-  <a href="/admin/password">修改密碼</a> ｜
+  <details style="display:inline-block; vertical-align:top">
+    <summary style="cursor:pointer">設定</summary>
+    <a href="/admin/master-wallets">代收主錢包</a> ｜
+    <a href="/admin/api-keys">API Key管理</a> ｜
+    <a href="/admin/webhook-config">Webhook設定</a> ｜
+    <a href="/admin/params">參數設定</a> ｜
+    <a href="/admin/password">修改密碼</a>
+  </details>
+  ｜
   <form method="post" action="/admin/logout" style="display:inline"><button type="submit">登出</button></form>
 </nav>
 <hr>
@@ -17,15 +21,18 @@
 {{define "navMinimal"}}<nav>
   <a href="/admin/dashboard">儀表板</a> ｜
   <a href="/admin/orders">訂單列表</a> ｜
-  <a href="/admin/master-wallets">代收主錢包</a> ｜
-  <a href="/admin/api-keys">API Key管理</a> ｜
-  <a href="/admin/webhook-config">Webhook設定</a> ｜
-  <a href="/admin/params">參數設定</a> ｜
   <a href="/admin/consolidation">手動歸集</a> ｜
   <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜
   <a href="/admin/notifications">通知歷史</a> ｜
   <a href="/admin/audit-logs">稽核日誌</a> ｜
-  <a href="/admin/password">修改密碼</a>
+  <details style="display:inline-block; vertical-align:top">
+    <summary style="cursor:pointer">設定</summary>
+    <a href="/admin/master-wallets">代收主錢包</a> ｜
+    <a href="/admin/api-keys">API Key管理</a> ｜
+    <a href="/admin/webhook-config">Webhook設定</a> ｜
+    <a href="/admin/params">參數設定</a> ｜
+    <a href="/admin/password">修改密碼</a>
+  </details>
 </nav>
 <hr>
 {{end}}
