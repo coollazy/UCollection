@@ -73,7 +73,7 @@ func run() error {
 	// Dockerfile) and the binary runs with / as its working directory, so
 	// this relative path resolves correctly both locally (go run from the
 	// repo root) and in production.
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	mux.Handle("GET /static/", staticCacheControl(http.StripPrefix("/static/", http.FileServer(http.Dir("web/static")))))
 	auth.RegisterRoutes(mux, authDeps)
 	consolidation.RegisterRoutes(mux, consolidationDeps, authDeps)
 	admin.RegisterRoutes(mux, adminDeps, authDeps)
@@ -147,6 +147,19 @@ func run() error {
 		return webhookErr
 	}
 	return authErr
+}
+
+// staticCacheControl 在 /static/ 回應設 Cache-Control: no-cache，讓瀏覽器每次
+// 使用前先向伺服器重新驗證（配合 FileServer 既有的 Last-Modified/
+// If-Modified-Since：未變回 304、不重抓 body；變了回 200 新版），取代原本無
+// Cache-Control 時的啟發式快取——那會讓商戶更新系統後仍看到舊的 JS（第16項）。
+// 同一版本 container 運行期間檔案 mtime 固定、走 304；商戶更新（重建 container）
+// 使 mtime 變動，瀏覽器就會抓到新版。只是一個薄 wrapper，僅掛在 /static/。
+func staticCacheControl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func healthzHandler(pool *store.Pool) http.HandlerFunc {
