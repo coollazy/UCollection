@@ -114,7 +114,7 @@ func TestCreateFeeTopupBatchHandler_RedirectsToSignPage(t *testing.T) {
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
 		"fee_source":         {"A1"},
 		"fee_source_address": {testSourceAddress},
-		"amount_per_order":   {"1000000"},
+		"amount_per_order":   {"1"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
 		"totp_code":          {totpCodeAt(t, secret, time.Now())},
 	})
@@ -164,7 +164,7 @@ func TestCreateFeeTopupBatchHandler_InvalidFeeSource(t *testing.T) {
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
 		"fee_source":         {"A3"},
 		"fee_source_address": {testSourceAddress},
-		"amount_per_order":   {"1000000"},
+		"amount_per_order":   {"1"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
 		"totp_code":          {totpCodeAt(t, secret, time.Now())},
 	})
@@ -225,7 +225,7 @@ func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 		"master_wallet_id":   {strconv.FormatInt(walletID, 10)},
 		"fee_source":         {"A1"},
 		"fee_source_address": {testSourceAddress},
-		"amount_per_order":   {"1000000"},
+		"amount_per_order":   {"1"},
 		"order_id":           {strconv.FormatInt(ord.ID, 10)},
 	})
 	feeTopupLoc, err := url.Parse(feeTopupResp.Header.Get("Location"))

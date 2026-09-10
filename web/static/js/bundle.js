@@ -70642,6 +70642,25 @@
     return { meta: record.meta, createdAt: record.createdAt };
   }
 
+  // web/js-src/trxamount.js
+  function sunToTrx(sun) {
+    const padded = String(sun).padStart(7, "0");
+    const intPart = padded.slice(0, -6).replace(/^0+(?=\d)/, "");
+    const fracPart = padded.slice(-6).replace(/0+$/, "");
+    return fracPart ? `${intPart}.${fracPart}` : intPart;
+  }
+  function trxToSun(s) {
+    s = String(s).trim();
+    if (s === "" || s.startsWith("-")) throw new Error("\u6BCF\u7B46\u91D1\u984D\u9808\u70BA\u5927\u65BC0\u7684\u6578\u5B57");
+    const [intPart, fracPart = ""] = s.split(".");
+    if (fracPart.length > 6) throw new Error("\u6BCF\u7B46\u91D1\u984D\u6700\u591A6\u4F4D\u5C0F\u6578");
+    const combined = (intPart || "0") + fracPart.padEnd(6, "0");
+    if (!/^\d+$/.test(combined)) throw new Error("\u7121\u6CD5\u8FA8\u8B58\u7684\u6BCF\u7B46\u91D1\u984D\u683C\u5F0F");
+    const sun = Number(combined);
+    if (!Number.isSafeInteger(sun) || sun <= 0) throw new Error("\u6BCF\u7B46\u91D1\u984D\u9808\u70BA\u5927\u65BC0\u7684\u6578\u5B57");
+    return sun;
+  }
+
   // web/js-src/page.js
   function readPageData() {
     const el = document.getElementById("page-data");
@@ -70738,11 +70757,10 @@
       if (page.type === "fee-topup") {
         const amountP = document.createElement("p");
         const label = document.createElement("label");
-        label.append("\u6BCF\u7B46\u91D1\u984D\uFF08\u6700\u5C0F\u55AE\u4F4D\uFF09 ");
+        label.append("\u6BCF\u7B46\u91D1\u984D\uFF08TRX\uFF09 ");
         amountInput = document.createElement("input");
-        amountInput.type = "number";
-        amountInput.min = "1";
-        if (page.default_amount_per_order) amountInput.value = String(page.default_amount_per_order);
+        amountInput.type = "text";
+        if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
         label.appendChild(amountInput);
         amountP.appendChild(label);
         els.itemsList.appendChild(amountP);
@@ -70881,7 +70899,7 @@
       const privateKey = derivedKeys.get(item.order_id);
       if (!privateKey) throw new Error("\u5C1A\u672A\u6838\u5C0D\uFF0C\u5DF2\u7565\u904E");
       itemStatusEl(item.order_id).textContent = "\u6E96\u5099\u4EA4\u6613\u4E2D...";
-      const prepareBody = page.type === "consolidation" ? { batch_id: page.batch_id, order_id: item.order_id } : { batch_id: page.batch_id, order_id: item.order_id, amount: Number(amountInput.value) };
+      const prepareBody = page.type === "consolidation" ? { batch_id: page.batch_id, order_id: item.order_id } : { batch_id: page.batch_id, order_id: item.order_id, amount: trxToSun(amountInput.value) };
       const prepareUrl = page.type === "consolidation" ? "/tron-proxy/consolidation/prepare" : "/tron-proxy/fee-topup/prepare";
       const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
       itemStatusEl(item.order_id).textContent = "\u7C3D\u540D\u4E2D...";

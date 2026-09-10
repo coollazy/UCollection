@@ -30,6 +30,40 @@ func parseOrderIDs(r *http.Request) ([]int64, error) {
 	return ids, nil
 }
 
+// parseTRXAmount converts an operator-entered TRX decimal string into int64
+// 最小單位 (sun, 6 decimals). Mirrors internal/admin.parseUSDTAmount: pure
+// string handling, zero floating-point (安全鐵律6) — TRX's sun and USDT-TRC20
+// share 6-decimal precision, so the logic is identical. Kept package-local
+// (like formatMicroAmount's admin/consolidation duplication) rather than
+// crossing the admin package boundary.
+func parseTRXAmount(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, errors.New("每筆金額為必填")
+	}
+	if strings.HasPrefix(s, "-") {
+		return 0, errors.New("金額不可為負數")
+	}
+
+	intPart, fracPart, hasFrac := strings.Cut(s, ".")
+	if hasFrac && len(fracPart) > 6 {
+		return 0, errors.New("最多只能輸入6位小數")
+	}
+	fracPart += strings.Repeat("0", 6-len(fracPart))
+	if intPart == "" {
+		intPart = "0"
+	}
+
+	sun, err := strconv.ParseInt(intPart+fracPart, 10, 64)
+	if err != nil {
+		return 0, errors.New("無法辨識的金額格式")
+	}
+	if sun <= 0 {
+		return 0, errors.New("金額必須大於0")
+	}
+	return sun, nil
+}
+
 // signRedirectURL builds the 303 target for the sign page, carrying the
 // batch this handler just created plus the order IDs the operator checked
 // — consolidation_batches/fee_topup_batches deliberately don't persist a
@@ -137,9 +171,9 @@ func createFeeTopupBatchHandler(deps Deps) http.HandlerFunc {
 		feeSource := strings.TrimSpace(r.FormValue("fee_source"))
 		feeSourceAddress := strings.TrimSpace(r.FormValue("fee_source_address"))
 
-		amountPerOrder, err := strconv.ParseInt(r.FormValue("amount_per_order"), 10, 64)
-		if err != nil || amountPerOrder <= 0 {
-			http.Error(w, "invalid amount_per_order", http.StatusBadRequest)
+		amountPerOrder, err := parseTRXAmount(r.FormValue("amount_per_order"))
+		if err != nil {
+			http.Error(w, "invalid amount_per_order: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 

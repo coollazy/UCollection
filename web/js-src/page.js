@@ -13,6 +13,7 @@ import { deriveConsolidationKey, deriveFeeTopupKeyFromMnemonic, feeTopupKeyFromP
 import { signTransaction } from './sign.js';
 import { verifySignerAddress } from './selfcheck.js';
 import { storeMnemonic, loadMnemonic, getMeta } from './storage.js';
+import { sunToTrx, trxToSun } from './trxamount.js';
 
 function readPageData() {
   const el = document.getElementById('page-data');
@@ -149,11 +150,10 @@ export function initSignPage() {
     if (page.type === 'fee-topup') {
       const amountP = document.createElement('p');
       const label = document.createElement('label');
-      label.append('每筆金額（最小單位） ');
+      label.append('每筆金額（TRX） ');
       amountInput = document.createElement('input');
-      amountInput.type = 'number';
-      amountInput.min = '1';
-      if (page.default_amount_per_order) amountInput.value = String(page.default_amount_per_order);
+      amountInput.type = 'text';
+      if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
       label.appendChild(amountInput);
       amountP.appendChild(label);
       els.itemsList.appendChild(amountP);
@@ -347,7 +347,7 @@ export function initSignPage() {
     const prepareBody =
       page.type === 'consolidation'
         ? { batch_id: page.batch_id, order_id: item.order_id }
-        : { batch_id: page.batch_id, order_id: item.order_id, amount: Number(amountInput.value) };
+        : { batch_id: page.batch_id, order_id: item.order_id, amount: trxToSun(amountInput.value) };
     const prepareUrl = page.type === 'consolidation' ? '/tron-proxy/consolidation/prepare' : '/tron-proxy/fee-topup/prepare';
     const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
 
