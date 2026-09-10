@@ -110,6 +110,7 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 				return
 			}
 			masterWalletID = batch.MasterWalletID
+			page.FeeSource = batch.FeeSource
 			page.FeeSourceAddress = batch.FeeSourceAddress
 
 			if amt, err := strconv.ParseInt(r.URL.Query().Get("amount_per_order"), 10, 64); err == nil && amt > 0 {

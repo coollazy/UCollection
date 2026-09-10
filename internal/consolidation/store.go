@@ -32,14 +32,15 @@ func loadConsolidationBatch(ctx context.Context, pool *store.Pool, id int64) (co
 type feeTopupBatch struct {
 	ID               int64
 	MasterWalletID   int64
+	FeeSource        string
 	FeeSourceAddress string
 }
 
 func loadFeeTopupBatch(ctx context.Context, pool *store.Pool, id int64) (feeTopupBatch, error) {
 	var b feeTopupBatch
 	err := pool.QueryRow(ctx, `
-		SELECT id, master_wallet_id, fee_source_address FROM fee_topup_batches WHERE id = $1
-	`, id).Scan(&b.ID, &b.MasterWalletID, &b.FeeSourceAddress)
+		SELECT id, master_wallet_id, fee_source, fee_source_address FROM fee_topup_batches WHERE id = $1
+	`, id).Scan(&b.ID, &b.MasterWalletID, &b.FeeSource, &b.FeeSourceAddress)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return feeTopupBatch{}, errRowNotFound
 	}

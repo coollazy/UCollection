@@ -98,6 +98,9 @@ func TestSignPageHandler_FeeTopup(t *testing.T) {
 	if page.FeeSourceAddress != testSourceAddress {
 		t.Fatalf("FeeSourceAddress = %q, want %q", page.FeeSourceAddress, testSourceAddress)
 	}
+	if page.FeeSource != "A1" {
+		t.Fatalf("FeeSource = %q, want A1（第14項：sign 頁曾漏帶 fee_source 導致顯示 undefined）", page.FeeSource)
+	}
 	if page.DefaultAmountPerOrder != 1000000 {
 		t.Fatalf("DefaultAmountPerOrder = %d, want 1000000", page.DefaultAmountPerOrder)
 	}
