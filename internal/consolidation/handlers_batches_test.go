@@ -217,8 +217,8 @@ func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse Location: %v", err)
 	}
-	if consolidationResp.StatusCode != http.StatusSeeOther || consolidationLoc.Path != "/admin/consolidation" || consolidationLoc.Query().Get("totp_error") != "missing" {
-		t.Fatalf("batches: status=%d location=%q, want 303 to /admin/consolidation?totp_error=missing", consolidationResp.StatusCode, consolidationResp.Header.Get("Location"))
+	if consolidationResp.StatusCode != http.StatusSeeOther || consolidationLoc.Path != "/admin/consolidation" || consolidationLoc.Query().Get("totp_error") != "missing" || consolidationLoc.Query().Get("master_wallet_id") != strconv.FormatInt(walletID, 10) {
+		t.Fatalf("batches: status=%d location=%q, want 303 to /admin/consolidation?master_wallet_id=%d&totp_error=missing（第15項：導回該錢包待歸集頁）", consolidationResp.StatusCode, consolidationResp.Header.Get("Location"), walletID)
 	}
 
 	feeTopupResp := postForm(t, srv, cookie, "/admin/consolidation/fee-topup-batches", url.Values{
@@ -232,7 +232,7 @@ func TestBatchWriteRoutes_RequireFreshTOTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse Location: %v", err)
 	}
-	if feeTopupResp.StatusCode != http.StatusSeeOther || feeTopupLoc.Path != "/admin/consolidation" || feeTopupLoc.Query().Get("totp_error") != "missing" {
-		t.Fatalf("fee-topup-batches: status=%d location=%q, want 303 to /admin/consolidation?totp_error=missing", feeTopupResp.StatusCode, feeTopupResp.Header.Get("Location"))
+	if feeTopupResp.StatusCode != http.StatusSeeOther || feeTopupLoc.Path != "/admin/consolidation" || feeTopupLoc.Query().Get("totp_error") != "missing" || feeTopupLoc.Query().Get("master_wallet_id") != strconv.FormatInt(walletID, 10) {
+		t.Fatalf("fee-topup-batches: status=%d location=%q, want 303 to /admin/consolidation?master_wallet_id=%d&totp_error=missing（第15項：導回該錢包待歸集頁）", feeTopupResp.StatusCode, feeTopupResp.Header.Get("Location"), walletID)
 	}
 }

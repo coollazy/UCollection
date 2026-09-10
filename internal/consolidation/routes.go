@@ -2,6 +2,7 @@ package consolidation
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/coollazy/UCollection/internal/auth"
 )
@@ -27,6 +28,20 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	}
 	toConsolidationList := func(*http.Request) string { return "/admin/consolidation" }
 
+	// toConsolidationPending：批次表單（開始歸集/補充手續費）送出失敗——例如
+	// TOTP驗證碼錯誤——時，導回「該代收主錢包的待歸集頁」而非光禿的
+	// /admin/consolidation。多錢包環境下後者會落到選錢包頁（consolidation_
+	// wallets.html，不顯示任何提示），使用者只看到莫名跳回列表；待歸集頁本身
+	// 已會顯示totp_error訊息（見totpReverifiedNotice）。master_wallet_id從送出
+	// 的表單讀取——此時RequireTOTPCode尚未放行、handler未執行、body未被消耗，
+	// PostFormValue已在讀totp_code時ParseForm，這裡讀的是快取後的表單值。
+	toConsolidationPending := func(r *http.Request) string {
+		if id := r.FormValue("master_wallet_id"); id != "" {
+			return "/admin/consolidation?master_wallet_id=" + url.QueryEscape(id)
+		}
+		return "/admin/consolidation"
+	}
+
 	// /tron-proxy/... — 資金轉出端點，風險等級最高。page.js對一個批次的每個項目都
 	// 各自呼叫prepare+broadcast（見sign頁流程），若比照其他路由要求每次都送驗證碼，
 	// N筆批次就要輸入2N次，操作上不可行——改用RequireTOTPCodeOrRecentStepUp（見
@@ -49,7 +64,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	// /admin/consolidation/sign — 助記詞簽名流程 (Part 3)。批次建立本身是資金操作的
 	// 起手式、簽名頁會顯示xpub並接手瀏覽器端衍生/簽名，皆比照CLAUDE.md安全鐵律9套用
 	// RequireTOTPCode，不能只掛一般登入session。
-	mux.Handle("POST /admin/consolidation/batches", requireTOTPCode(createConsolidationBatchHandler(deps), toConsolidationList))
-	mux.Handle("POST /admin/consolidation/fee-topup-batches", requireTOTPCode(createFeeTopupBatchHandler(deps), toConsolidationList))
+	mux.Handle("POST /admin/consolidation/batches", requireTOTPCode(createConsolidationBatchHandler(deps), toConsolidationPending))
+	mux.Handle("POST /admin/consolidation/fee-topup-batches", requireTOTPCode(createFeeTopupBatchHandler(deps), toConsolidationPending))
 	mux.Handle("GET /admin/consolidation/sign", requireTOTPCode(signPageHandler(deps), auth.SelfPath))
 }
