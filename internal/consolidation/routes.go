@@ -52,6 +52,14 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("POST /tron-proxy/fee-topup/prepare", auth.RequireSession(authDeps)(auth.RequireTOTPCodeOrRecentStepUp(authDeps, toConsolidationList)(prepareFeeTopupHandler(deps))))
 	mux.Handle("POST /tron-proxy/fee-topup/broadcast", auth.RequireSession(authDeps)(auth.RequireTOTPCodeOrRecentStepUp(authDeps, toConsolidationList)(broadcastFeeTopupHandler(deps))))
 
+	// /tron-proxy/consolidation/transaction-info — despite the /tron-proxy/
+	// prefix (elsewhere in this file reserved for fund-moving
+	// prepare/broadcast calls), this one is a pure on-chain status *read*
+	// (gettransactioninfobyid) with no broadcast side effect, so it stays
+	// RequireSession-only, matching the other read-only endpoints below rather
+	// than the TOTP/step-up group above.
+	mux.Handle("POST /tron-proxy/consolidation/transaction-info", requireSession(transactionInfoHandler(deps)))
+
 	// /admin/consolidation/... — 不碰金鑰的HTML頁面 (Part 2). 唯讀查詢維持
 	// RequireSession；地址簿寫入（新增/改名/刪除）疊加RequireTOTPCode，理由同
 	// 技術架構設計第10節「地址簿的新增/改名/刪除則需要step-up」.
@@ -59,6 +67,13 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("GET /admin/consolidation/address-book", requireSession(addressBookPageHandler(deps)))
 	mux.Handle("POST /admin/consolidation/address-book", requireTOTPCode(addressBookSubmitHandler(deps), func(*http.Request) string { return "/admin/consolidation/address-book" }))
 	mux.Handle("DELETE /admin/consolidation/address-book/{id}", requireTOTPCode(addressBookDeleteHandler(deps), func(*http.Request) string { return "/admin/consolidation/address-book" }))
+
+	// /admin/consolidation/fee-estimate、/admin/consolidation/trx-balance —
+	// 手動歸集流程重構Phase2（見docs/進度.md）新增的唯讀精算端點：對TronGrid做
+	// triggerconstantcontract/getaccount模擬查詢，不建立任何consolidation_items/
+	// fee_topup_items列、不簽名、不廣播，維持RequireSession，不疊加TOTP/step-up。
+	mux.Handle("POST /admin/consolidation/fee-estimate", requireSession(feeEstimateHandler(deps)))
+	mux.Handle("POST /admin/consolidation/trx-balance", requireSession(trxBalanceHandler(deps)))
 
 	// /admin/consolidation/batches、/admin/consolidation/fee-topup-batches、
 	// /admin/consolidation/sign — 助記詞簽名流程 (Part 3)。批次建立本身是資金操作的
