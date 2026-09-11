@@ -11,7 +11,6 @@
 {{else}}
   <form method="post">
   <input type="hidden" name="master_wallet_id" value="{{.MasterWalletID}}">
-  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <table border="1" cellpadding="4">
     <tr><th><label><input type="checkbox" id="select-all-orders"> 全選</label></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（USDT）</th><th>鏈上餘額（USDT）</th></tr>
     {{range .Entries}}
@@ -59,7 +58,7 @@
     <button type="button" id="check-trx-balance-btn">查餘額</button>
     <span id="trx-balance-result"></span>
   </p>
-  <p><label>每筆金額（TRX） <input type="text" name="amount_per_order" placeholder="例如 3 或 3.5"></label></p>
+  <p>每筆補充TRX金額由系統自動試算（首筆較貴、其餘筆較便宜），下一頁會顯示試算結果供核對，這裡不需要填寫。</p>
   </div>
 
   <p><button type="submit" formaction="/admin/consolidation/prepare-flow">準備歸集</button></p>

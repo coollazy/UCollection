@@ -463,14 +463,12 @@ export function initSignPage() {
     }
     els.itemsList.appendChild(table);
 
+    // 每筆補充TRX金額由準備歸集頁自動試算好、隨query string帶過來——不在這裡
+    // 讓商戶輸入（2026-09-11使用者拍板，取代先前需要手動抄「試算」結果的兩步驟）。
+    // 純唯讀顯示供送出前核對，不是輸入框。
     const amountP = document.createElement('p');
-    const label = document.createElement('label');
-    label.append('每筆補充 TRX 金額 ');
-    amountInput = document.createElement('input');
-    amountInput.type = 'text';
-    if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
-    label.appendChild(amountInput);
-    amountP.appendChild(label);
+    amountP.textContent =
+      '每筆補充 TRX 金額（系統已自動試算）：首筆 ' + sunToTrx(page.first_amount_per_order) + ' TRX，其餘每筆 ' + sunToTrx(page.repeat_amount_per_order) + ' TRX';
     els.itemsList.appendChild(amountP);
   }
 
@@ -585,13 +583,15 @@ export function initSignPage() {
       els.deriveButton.disabled = false;
       return;
     }
-    const perOrderSun = trxToSun(amountInput.value);
-
     try {
-      // 步驟1：逐筆補 TRX（實補 = max(0, 每筆金額 − 現有 TRX)；已足額則跳過）
+      // 步驟1：逐筆補 TRX（實補 = max(0, 目標金額 − 現有 TRX)；已足額則跳過）。
+      // 目標金額分首筆/其餘筆兩種（精省手續費，ADR-0017決策2）——pending[0]是首筆，
+      // 兩個金額都是準備歸集頁自動試算好、隨頁面資料帶來的，不是商戶輸入。
       const topupTxByOrder = new Map(); // order_id -> txId（僅有實際補款者）
-      for (const item of pending) {
-        const needSun = perOrderSun - item.trx_balance;
+      for (let i = 0; i < pending.length; i++) {
+        const item = pending[i];
+        const targetSun = i === 0 ? page.first_amount_per_order : page.repeat_amount_per_order;
+        const needSun = targetSun - item.trx_balance;
         if (needSun <= 0) {
           itemStatusEl(item.order_id).textContent = '已有足夠 TRX，略過補款';
           continue;

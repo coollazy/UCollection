@@ -1,8 +1,10 @@
 package consolidation
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/coollazy/UCollection/internal/hdwallet"
@@ -97,107 +99,33 @@ func feeEstimateHandler(deps Deps) http.HandlerFunc {
 		}
 		ctx := r.Context()
 
-		params, err := deps.TronClient.GetChainParameters(ctx)
-		if err != nil {
-			writeError(w, newAPIError(http.StatusBadGateway, "TRONGRID_ESTIMATE_FAILED", err.Error()))
-			return
-		}
-		energyFee := params["getEnergyFee"]
-		if energyFee <= 0 {
-			writeError(w, errAPIInternal)
-			return
-		}
-
-		ord, err := order.GetByID(ctx, deps.Pool, req.OrderIDs[0])
-		if errors.Is(err, order.ErrOrderNotFound) {
+		firstSun, repeatSun, firstEnergy, repeatEnergy, energyFee, err := estimateConsolidationFeesSun(
+			ctx, deps, req.MasterWalletID, req.DestinationAddress, req.OrderIDs[0],
+		)
+		switch {
+		case errors.Is(err, order.ErrOrderNotFound):
 			writeError(w, errAPIOrderNotFound)
 			return
-		}
-		if err != nil {
-			writeError(w, errAPIInternal)
-			return
-		}
-		if ord.MasterWalletID != req.MasterWalletID {
+		case errors.Is(err, errOrderWalletMismatch):
 			writeError(w, errAPIOrderWalletMismatch)
 			return
-		}
-		owner := ord.Address
-
-		// repeatEnergy: simulate a transfer FROM owner TO owner itself — owner
-		// already holds USDT, so this reads the "not a first-time recipient"
-		// energy cost.
-		repeatParam, err := abiEncodeTransfer(owner, 1)
-		if err != nil {
+		case errors.Is(err, errRowNotFound):
+			writeError(w, errAPIInvalidRequest)
+			return
+		case errors.Is(err, errEnergyEstimateReverted):
+			writeError(w, errAPIEnergyEstimateReverted)
+			return
+		case errors.Is(err, errTronGridEstimateFailed):
+			writeError(w, newAPIError(http.StatusBadGateway, "TRONGRID_ESTIMATE_FAILED", err.Error()))
+			return
+		case err != nil:
 			writeError(w, errAPIInternal)
 			return
 		}
-		repeatResult, err := deps.TronClient.TriggerConstantContract(ctx, tronclient.TriggerSmartContractParams{
-			OwnerAddress:     owner,
-			ContractAddress:  deps.USDTContractAddress,
-			FunctionSelector: "transfer(address,uint256)",
-			Parameter:        repeatParam,
-			CallValue:        0,
-		})
-		if err != nil {
-			writeError(w, newAPIError(http.StatusBadGateway, "TRONGRID_ESTIMATE_FAILED", err.Error()))
-			return
-		}
-		if repeatResult.Reverted {
-			writeError(w, errAPIEnergyEstimateReverted)
-			return
-		}
-
-		// firstEnergy: simulate a transfer FROM owner TO whichever destination
-		// is going to actually receive the consolidated funds. If the operator
-		// hasn't picked one yet, fall back to a fixed probe address derived
-		// from this master wallet's own xpub — guaranteed to have never held
-		// this USDT contract, so it reads a conservative first-time-recipient
-		// figure regardless of what real destination gets chosen later.
-		firstTarget := req.DestinationAddress
-		if firstTarget == "" {
-			wallet, err := getMasterWallet(ctx, deps.Pool, req.MasterWalletID)
-			if errors.Is(err, errRowNotFound) {
-				writeError(w, errAPIInvalidRequest)
-				return
-			}
-			if err != nil {
-				writeError(w, errAPIInternal)
-				return
-			}
-			firstTarget, err = hdwallet.DeriveAddress(wallet.Xpub, consolidationProbeIndex)
-			if err != nil {
-				writeError(w, errAPIInternal)
-				return
-			}
-		}
-
-		firstParam, err := abiEncodeTransfer(firstTarget, 1)
-		if err != nil {
-			writeError(w, errAPIInternal)
-			return
-		}
-		firstResult, err := deps.TronClient.TriggerConstantContract(ctx, tronclient.TriggerSmartContractParams{
-			OwnerAddress:     owner,
-			ContractAddress:  deps.USDTContractAddress,
-			FunctionSelector: "transfer(address,uint256)",
-			Parameter:        firstParam,
-			CallValue:        0,
-		})
-		if err != nil {
-			writeError(w, newAPIError(http.StatusBadGateway, "TRONGRID_ESTIMATE_FAILED", err.Error()))
-			return
-		}
-		if firstResult.Reverted {
-			writeError(w, errAPIEnergyEstimateReverted)
-			return
-		}
-
-		firstSun := energyToTRXSun(firstResult.EnergyUsed, energyFee)
-		repeatSun := energyToTRXSun(repeatResult.EnergyUsed, energyFee)
 
 		writeJSON(w, http.StatusOK, feeEstimateResponse{
-			FirstEnergy:  firstResult.EnergyUsed,
-			RepeatEnergy: repeatResult.EnergyUsed,
+			FirstEnergy:  firstEnergy,
+			RepeatEnergy: repeatEnergy,
 			EnergyFee:    energyFee,
 			FirstTRXSun:  firstSun,
 			RepeatTRXSun: repeatSun,
@@ -205,6 +133,103 @@ func feeEstimateHandler(deps Deps) http.HandlerFunc {
 			RepeatTRX:    formatMicroAmount(repeatSun),
 		})
 	}
+}
+
+var (
+	errOrderWalletMismatch    = errors.New("consolidation: order does not belong to the specified master wallet")
+	errEnergyEstimateReverted = errors.New("consolidation: energy estimate simulation reverted on chain")
+	errTronGridEstimateFailed = errors.New("consolidation: trongrid estimate call failed")
+)
+
+// estimateConsolidationFeesSun computes the first/repeat TRX-sun fee
+// estimate for consolidating orders to destinationAddress, via TronGrid's
+// triggerconstantcontract simulation (技術架構設計第10節/ADR-0017). Shared by
+// feeEstimateHandler (a standalone preview the operator can query before
+// submitting) and createFlowHandler (準備歸集's authoritative, automatic
+// computation — see ADR-0017 決策 "拿掉手動輸入的每筆金額欄位，改由伺服器自動算好
+// 帶去簽名頁", 2026-09-11 使用者拍板). Returns plain sentinel errors so both
+// callers can map them to their own response style (JSON vs plain
+// http.Error) without duplicating the TronGrid call sequence.
+func estimateConsolidationFeesSun(ctx context.Context, deps Deps, masterWalletID int64, destinationAddress string, firstOrderID int64) (firstSun, repeatSun, firstEnergy, repeatEnergy, energyFee int64, err error) {
+	params, err := deps.TronClient.GetChainParameters(ctx)
+	if err != nil {
+		return 0, 0, 0, 0, 0, fmt.Errorf("%w: %v", errTronGridEstimateFailed, err) //nolint:errorlint // wrapping sentinel + dynamic error for errors.Is
+	}
+	energyFee = params["getEnergyFee"]
+	if energyFee <= 0 {
+		return 0, 0, 0, 0, 0, errors.New("consolidation: getEnergyFee chain parameter is non-positive")
+	}
+
+	ord, err := order.GetByID(ctx, deps.Pool, firstOrderID)
+	if err != nil {
+		return 0, 0, 0, 0, 0, err
+	}
+	if ord.MasterWalletID != masterWalletID {
+		return 0, 0, 0, 0, 0, errOrderWalletMismatch
+	}
+	owner := ord.Address
+
+	// repeatEnergy: simulate a transfer FROM owner TO owner itself — owner
+	// already holds USDT, so this reads the "not a first-time recipient"
+	// energy cost.
+	repeatParam, err := abiEncodeTransfer(owner, 1)
+	if err != nil {
+		return 0, 0, 0, 0, 0, err
+	}
+	repeatResult, err := deps.TronClient.TriggerConstantContract(ctx, tronclient.TriggerSmartContractParams{
+		OwnerAddress:     owner,
+		ContractAddress:  deps.USDTContractAddress,
+		FunctionSelector: "transfer(address,uint256)",
+		Parameter:        repeatParam,
+		CallValue:        0,
+	})
+	if err != nil {
+		return 0, 0, 0, 0, 0, fmt.Errorf("%w: %v", errTronGridEstimateFailed, err) //nolint:errorlint // same as above
+	}
+	if repeatResult.Reverted {
+		return 0, 0, 0, 0, 0, errEnergyEstimateReverted
+	}
+
+	// firstEnergy: simulate a transfer FROM owner TO whichever destination is
+	// going to actually receive the consolidated funds. If the caller hasn't
+	// picked one yet (destinationAddress == ""), fall back to a fixed probe
+	// address derived from this master wallet's own xpub — guaranteed to
+	// have never held this USDT contract, so it reads a conservative
+	// first-time-recipient figure regardless of what real destination gets
+	// chosen later.
+	firstTarget := destinationAddress
+	if firstTarget == "" {
+		wallet, werr := getMasterWallet(ctx, deps.Pool, masterWalletID)
+		if werr != nil {
+			return 0, 0, 0, 0, 0, werr
+		}
+		firstTarget, err = hdwallet.DeriveAddress(wallet.Xpub, consolidationProbeIndex)
+		if err != nil {
+			return 0, 0, 0, 0, 0, err
+		}
+	}
+
+	firstParam, err := abiEncodeTransfer(firstTarget, 1)
+	if err != nil {
+		return 0, 0, 0, 0, 0, err
+	}
+	firstResult, err := deps.TronClient.TriggerConstantContract(ctx, tronclient.TriggerSmartContractParams{
+		OwnerAddress:     owner,
+		ContractAddress:  deps.USDTContractAddress,
+		FunctionSelector: "transfer(address,uint256)",
+		Parameter:        firstParam,
+		CallValue:        0,
+	})
+	if err != nil {
+		return 0, 0, 0, 0, 0, fmt.Errorf("%w: %v", errTronGridEstimateFailed, err) //nolint:errorlint // same as above
+	}
+	if firstResult.Reverted {
+		return 0, 0, 0, 0, 0, errEnergyEstimateReverted
+	}
+
+	firstSun = energyToTRXSun(firstResult.EnergyUsed, energyFee)
+	repeatSun = energyToTRXSun(repeatResult.EnergyUsed, energyFee)
+	return firstSun, repeatSun, firstResult.EnergyUsed, repeatResult.EnergyUsed, energyFee, nil
 }
 
 // trxBalanceRequest is POST /admin/consolidation/trx-balance's request body.

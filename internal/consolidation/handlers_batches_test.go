@@ -195,28 +195,34 @@ func TestCreateFeeTopupBatchHandler_InvalidAmount(t *testing.T) {
 	}
 }
 
-// TestCreateFlowHandler_RedirectsToCombinedSignPage ADR-0017 Phase 4a: the
+// TestCreateFlowHandler_RedirectsToCombinedSignPage ADR-0017 Phase 4a/4c: the
 // merged「準備歸集」submit creates BOTH batches in one request and redirects
 // to the combined sign page carrying both batch ids, the selected orders,
-// and the per-order TRX amount.
+// and the server自動試算的首筆/其餘筆TRX金額（2026-09-11使用者拍板：拿掉手動輸入
+// 欄位，改由伺服器算好帶過去；同時這條路由也不再要求TOTP，見createFlowHandler
+// doc comment）。
 func TestCreateFlowHandler_RedirectsToCombinedSignPage(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
-	deps := Deps{Pool: pool}
 	walletID := newMasterWallet(t, pool)
 	ord1 := newOrder(t, pool, walletID, "order-1")
 	ord2 := newOrder(t, pool, walletID, "order-2")
+
+	mock := newMockTronGrid()
+	mock.enqueue("/wallet/getchainparameters", http.StatusOK, getChainParametersFixture(100))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, triggerConstantContractFixture(13279, false, "")) // repeat
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, triggerConstantContractFixture(821, false, ""))   // first
+	tc := mock.start(t)
+	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
-	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	cookie := newActiveSessionCookie(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/prepare-flow", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {testDestinationAddress},
 		"fee_source":          {"A1"},
 		"fee_source_address":  {testSourceAddress},
-		"amount_per_order":    {"3.5"},
 		"order_id":            {strconv.FormatInt(ord1.ID, 10), strconv.FormatInt(ord2.ID, 10)},
-		"totp_code":           {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303; body = %s", resp.StatusCode, readBody(t, resp))
@@ -232,8 +238,11 @@ func TestCreateFlowHandler_RedirectsToCombinedSignPage(t *testing.T) {
 	if q.Get("type") != "combined" {
 		t.Fatalf("type = %q, want combined", q.Get("type"))
 	}
-	if q.Get("amount_per_order") != "3500000" {
-		t.Fatalf("amount_per_order = %q, want 3500000 (redirect=%q)", q.Get("amount_per_order"), loc)
+	if q.Get("first_amount_per_order") != "100000" {
+		t.Fatalf("first_amount_per_order = %q, want 100000 (energyToTRXSun(821,100), redirect=%q)", q.Get("first_amount_per_order"), loc)
+	}
+	if q.Get("repeat_amount_per_order") != "1500000" {
+		t.Fatalf("repeat_amount_per_order = %q, want 1500000 (energyToTRXSun(13279,100), redirect=%q)", q.Get("repeat_amount_per_order"), loc)
 	}
 	if len(q["order_id"]) != 2 {
 		t.Fatalf("order_id count = %d, want 2 (redirect=%q)", len(q["order_id"]), loc)
@@ -273,66 +282,40 @@ func TestCreateFlowHandler_InvalidDestinationAddress(t *testing.T) {
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
 	srv := newTestMux(t, deps)
-	cookie, secret := newActiveSessionWithTOTP(t, pool)
+	cookie := newActiveSessionCookie(t, pool)
 
 	resp := postForm(t, srv, cookie, "/admin/consolidation/prepare-flow", url.Values{
 		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
 		"destination_address": {"not-a-valid-address"},
 		"fee_source":          {"A1"},
 		"fee_source_address":  {testSourceAddress},
-		"amount_per_order":    {"3"},
 		"order_id":            {strconv.FormatInt(ord.ID, 10)},
-		"totp_code":           {totpCodeAt(t, secret, time.Now())},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
 	}
-	// The bad destination fails inside CreateConsolidationBatch (created
-	// first), so no fee-topup batch should exist either.
+	// The bad destination is rejected before any TronGrid call or batch
+	// insert (Deps has no TronClient here — a call would panic — proving
+	// the validation-before-estimate ordering holds).
 	assertAuditCount(t, pool, "CONSOLIDATION_FLOW_CREATED", 0)
 }
 
-func TestCreateFlowHandler_InvalidAmount(t *testing.T) {
+// TestCreateFlowHandler_NoTOTPRequired ADR-0017（2026-09-11使用者拍板）：準備歸集
+// 這條路由刻意不要求TOTP（理由見createFlowHandler doc comment）——沒有totp_code
+// 一樣能成功建立batch並導向簽名頁，跟舊版「沒帶totp_code就擋下」行為相反。真正
+// 的驗證要求collapse到簽名頁本身的totp-code-input。
+func TestCreateFlowHandler_NoTOTPRequired(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
-	deps := Deps{Pool: pool}
 	walletID := newMasterWallet(t, pool)
 	ord := newOrder(t, pool, walletID, "order-1")
-	srv := newTestMux(t, deps)
-	cookie, secret := newActiveSessionWithTOTP(t, pool)
 
-	resp := postForm(t, srv, cookie, "/admin/consolidation/prepare-flow", url.Values{
-		"master_wallet_id":    {strconv.FormatInt(walletID, 10)},
-		"destination_address": {testDestinationAddress},
-		"fee_source":          {"A1"},
-		"fee_source_address":  {testSourceAddress},
-		"amount_per_order":    {"0"},
-		"order_id":            {strconv.FormatInt(ord.ID, 10)},
-		"totp_code":           {totpCodeAt(t, secret, time.Now())},
-	})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400; body = %s", resp.StatusCode, readBody(t, resp))
-	}
-	// Amount is validated before any batch is created — nothing persisted.
-	var consBatches int
-	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM consolidation_batches`).Scan(&consBatches); err != nil {
-		t.Fatalf("count consolidation_batches: %v", err)
-	}
-	if consBatches != 0 {
-		t.Fatalf("consolidation_batches count = %d, want 0 (amount validated before any insert)", consBatches)
-	}
-}
-
-// TestCreateFlowHandler_RequireFreshTOTP ADR-0017/安全鐵律9: the merged flow
-// submit is a fund-moving 起手式, so a request with no totp_code redirects
-// back to the wallet's pending page with totp_error=missing, exactly like
-// the legacy batch routes.
-func TestCreateFlowHandler_RequireFreshTOTP(t *testing.T) {
-	pool := testPool(t)
-	resetDB(t, pool)
-	deps := Deps{Pool: pool}
-	walletID := newMasterWallet(t, pool)
-	ord := newOrder(t, pool, walletID, "order-1")
+	mock := newMockTronGrid()
+	mock.enqueue("/wallet/getchainparameters", http.StatusOK, getChainParametersFixture(100))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, triggerConstantContractFixture(13279, false, ""))
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, triggerConstantContractFixture(821, false, ""))
+	tc := mock.start(t)
+	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
 	srv := newTestMux(t, deps)
 	cookie := newActiveSessionCookie(t, pool)
 
@@ -341,16 +324,13 @@ func TestCreateFlowHandler_RequireFreshTOTP(t *testing.T) {
 		"destination_address": {testDestinationAddress},
 		"fee_source":          {"A1"},
 		"fee_source_address":  {testSourceAddress},
-		"amount_per_order":    {"3"},
 		"order_id":            {strconv.FormatInt(ord.ID, 10)},
+		// 刻意不帶 totp_code
 	})
-	loc, err := url.Parse(resp.Header.Get("Location"))
-	if err != nil {
-		t.Fatalf("parse Location: %v", err)
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/admin/consolidation/sign?") {
+		t.Fatalf("prepare-flow without totp_code: status=%d location=%q, want 303 to /admin/consolidation/sign?...", resp.StatusCode, resp.Header.Get("Location"))
 	}
-	if resp.StatusCode != http.StatusSeeOther || loc.Path != "/admin/consolidation" || loc.Query().Get("totp_error") != "missing" || loc.Query().Get("master_wallet_id") != strconv.FormatInt(walletID, 10) {
-		t.Fatalf("prepare-flow: status=%d location=%q, want 303 to /admin/consolidation?master_wallet_id=%d&totp_error=missing", resp.StatusCode, resp.Header.Get("Location"), walletID)
-	}
+	assertAuditCount(t, pool, "CONSOLIDATION_FLOW_CREATED", 1)
 }
 
 // TestBatchWriteRoutes_RequireFreshTOTP ADR-0016: every POST requires its

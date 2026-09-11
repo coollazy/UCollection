@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -142,11 +141,12 @@ func TestSignPageHandler_Combined(t *testing.T) {
 	}
 
 	path := "/admin/consolidation/sign?" + url.Values{
-		"type":                   {"combined"},
-		"consolidation_batch_id": {strconv.FormatInt(consBatchID, 10)},
-		"fee_topup_batch_id":     {strconv.FormatInt(feeBatchID, 10)},
-		"order_id":               {strconv.FormatInt(ord.ID, 10)},
-		"amount_per_order":       {"3500000"},
+		"type":                    {"combined"},
+		"consolidation_batch_id":  {strconv.FormatInt(consBatchID, 10)},
+		"fee_topup_batch_id":      {strconv.FormatInt(feeBatchID, 10)},
+		"order_id":                {strconv.FormatInt(ord.ID, 10)},
+		"first_amount_per_order":  {"3500000"},
+		"repeat_amount_per_order": {"2000000"},
 	}.Encode()
 	resp := callSignPageHandler(t, deps, path)
 	if resp.StatusCode != http.StatusOK {
@@ -172,8 +172,11 @@ func TestSignPageHandler_Combined(t *testing.T) {
 	if page.FeeSource != "A1" || page.FeeSourceAddress != testSourceAddress {
 		t.Fatalf("fee source = (%q,%q), want (A1,%q)", page.FeeSource, page.FeeSourceAddress, testSourceAddress)
 	}
-	if page.DefaultAmountPerOrder != 3500000 {
-		t.Fatalf("DefaultAmountPerOrder = %d, want 3500000", page.DefaultAmountPerOrder)
+	if page.FirstAmountPerOrder != 3500000 {
+		t.Fatalf("FirstAmountPerOrder = %d, want 3500000", page.FirstAmountPerOrder)
+	}
+	if page.RepeatAmountPerOrder != 2000000 {
+		t.Fatalf("RepeatAmountPerOrder = %d, want 2000000", page.RepeatAmountPerOrder)
 	}
 	if len(page.Items) != 1 {
 		t.Fatalf("Items = %+v, want single item", page.Items)
@@ -253,10 +256,11 @@ func TestSignPageHandler_SkipsOrderFromDifferentMasterWallet(t *testing.T) {
 	}
 }
 
-// TestSignPageHandler_RequireFreshTOTP ADR-0016: GET-protected pages have
-// no body to carry a code in, so every single visit — not just a stale
-// one — bounces through /admin/reverify-totp first.
-func TestSignPageHandler_RequireFreshTOTP(t *testing.T) {
+// TestSignPageHandler_NoTOTPRequired ADR-0017（2026-09-11使用者拍板）：GET
+// /admin/consolidation/sign不再要求TOTP/reverify——真正的驗證要求collapse到頁面
+// 本身的totp-code-input，由第一次/tron-proxy/.../prepare呼叫消耗（理由見
+// createFlowHandler doc comment）。單純登入session即可直接看到簽名頁。
+func TestSignPageHandler_NoTOTPRequired(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	deps := Deps{Pool: pool}
@@ -270,19 +274,17 @@ func TestSignPageHandler_RequireFreshTOTP(t *testing.T) {
 
 	path := "/admin/consolidation/sign?type=consolidation&batch_id=" + strconv.FormatInt(batchID, 10)
 	resp := doGet(t, srv, cookie, path)
-	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/admin/reverify-totp") {
-		t.Fatalf("status=%d location=%q, want 303 to reverify", resp.StatusCode, resp.Header.Get("Location"))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d, want 200 (no TOTP/reverify gate); body=%s", resp.StatusCode, readBody(t, resp))
 	}
 }
 
 // callSignPageHandler exercises signPageHandler directly rather than
-// through the full mux: ADR-0016 makes RequireTOTPCode unconditionally
-// redirect every GET to /admin/reverify-totp first (no freshness grace
-// window), so a request routed through the real mux never reaches this
-// handler without a full login+TOTP-code round trip. The handler's own
-// page-data/validation/CSP-header logic is unaffected by what gates it, so
-// testing it in isolation is both simpler and still exercises the real
-// behavior under test.
+// through the full mux — a thin convenience so most tests don't need to set
+// up a session cookie for a route that (as of 2026-09-11) is plain
+// RequireSession anyway. The handler's own page-data/validation/CSP-header
+// logic is unaffected by what gates it, so testing it in isolation is both
+// simpler and still exercises the real behavior under test.
 func callSignPageHandler(t *testing.T, deps Deps, path string) *http.Response {
 	t.Helper()
 	rec := httptest.NewRecorder()

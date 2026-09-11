@@ -70991,13 +70991,7 @@
       }
       els.itemsList.appendChild(table);
       const amountP = document.createElement("p");
-      const label = document.createElement("label");
-      label.append("\u6BCF\u7B46\u88DC\u5145 TRX \u91D1\u984D ");
-      amountInput = document.createElement("input");
-      amountInput.type = "text";
-      if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
-      label.appendChild(amountInput);
-      amountP.appendChild(label);
+      amountP.textContent = "\u6BCF\u7B46\u88DC\u5145 TRX \u91D1\u984D\uFF08\u7CFB\u7D71\u5DF2\u81EA\u52D5\u8A66\u7B97\uFF09\uFF1A\u9996\u7B46 " + sunToTrx(page.first_amount_per_order) + " TRX\uFF0C\u5176\u9918\u6BCF\u7B46 " + sunToTrx(page.repeat_amount_per_order) + " TRX";
       els.itemsList.appendChild(amountP);
     }
     function combinedFeeMode() {
@@ -71088,11 +71082,12 @@
         els.deriveButton.disabled = false;
         return;
       }
-      const perOrderSun = trxToSun(amountInput.value);
       try {
         const topupTxByOrder = /* @__PURE__ */ new Map();
-        for (const item of pending) {
-          const needSun = perOrderSun - item.trx_balance;
+        for (let i = 0; i < pending.length; i++) {
+          const item = pending[i];
+          const targetSun = i === 0 ? page.first_amount_per_order : page.repeat_amount_per_order;
+          const needSun = targetSun - item.trx_balance;
           if (needSun <= 0) {
             itemStatusEl(item.order_id).textContent = "\u5DF2\u6709\u8DB3\u5920 TRX\uFF0C\u7565\u904E\u88DC\u6B3E";
             continue;

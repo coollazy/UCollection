@@ -81,11 +81,15 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	// RequireTOTPCode，不能只掛一般登入session。
 	mux.Handle("POST /admin/consolidation/batches", requireTOTPCode(createConsolidationBatchHandler(deps), toConsolidationPending))
 	mux.Handle("POST /admin/consolidation/fee-topup-batches", requireTOTPCode(createFeeTopupBatchHandler(deps), toConsolidationPending))
-	// /admin/consolidation/prepare-flow — 手動歸集流程重構Phase4（ADR-0017）：填寫頁
-	// 合併後的單一「準備歸集」submit 送到這裡，一次建立 consolidation batch +
-	// fee-topup batch 並導向整合簽名頁（type=combined）。舊的 batches/
-	// fee-topup-batches 路由保留不刪（既有測試與相容性），只是填寫頁不再送到它們。
-	// 比照批次建立同屬資金操作起手式，套用 RequireTOTPCode。
-	mux.Handle("POST /admin/consolidation/prepare-flow", requireTOTPCode(createFlowHandler(deps), toConsolidationPending))
-	mux.Handle("GET /admin/consolidation/sign", requireTOTPCode(signPageHandler(deps), auth.SelfPath))
+	// /admin/consolidation/prepare-flow、GET .../sign — 手動歸集流程重構Phase4
+	// （ADR-0017）：填寫頁合併後的單一「準備歸集」submit 送到prepare-flow，一次建立
+	// consolidation batch + fee-topup batch 並導向整合簽名頁（type=combined）。舊的
+	// batches/fee-topup-batches 路由保留不刪（既有測試與相容性），只是填寫頁不再送到
+	// 它們。**這兩條刻意只掛 RequireSession，不疊加 RequireTOTPCode**
+	// （2026-09-11使用者拍板，見createFlowHandler doc comment的完整理由）：TOTP
+	// 驗證整個collapse到簽名頁自己的totp-code-input欄位（由第一次
+	// /tron-proxy/.../prepare呼叫消耗），避免這裡跟簽名頁各自要求一次、外加GET
+	// 簽名頁原本掛的reverify-totp又插一次，變成三次。
+	mux.Handle("POST /admin/consolidation/prepare-flow", requireSession(createFlowHandler(deps)))
+	mux.Handle("GET /admin/consolidation/sign", requireSession(signPageHandler(deps)))
 }

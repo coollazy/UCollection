@@ -63,7 +63,9 @@ type signPageJSON struct {
 	DestinationAddress    string     `json:"destination_address,omitempty"`      // consolidation/combined
 	FeeSource             string     `json:"fee_source,omitempty"`               // fee-topup/combined
 	FeeSourceAddress      string     `json:"fee_source_address,omitempty"`       // fee-topup/combined
-	DefaultAmountPerOrder int64      `json:"default_amount_per_order,omitempty"` // fee-topup/combined prefill
+	DefaultAmountPerOrder int64      `json:"default_amount_per_order,omitempty"` // fee-topup legacy mode prefill only
+	FirstAmountPerOrder   int64      `json:"first_amount_per_order,omitempty"`   // combined only：伺服器自動試算，非商戶輸入
+	RepeatAmountPerOrder  int64      `json:"repeat_amount_per_order,omitempty"`  // combined only：伺服器自動試算，非商戶輸入
 	Items                 []signItem `json:"items"`
 }
 
@@ -206,8 +208,16 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 			}
 			page.Xpub = wallet.Xpub
 
-			if amt, err := strconv.ParseInt(r.URL.Query().Get("amount_per_order"), 10, 64); err == nil && amt > 0 {
-				page.DefaultAmountPerOrder = amt
+			// createFlowHandler已經自動試算好首筆/其餘筆金額並帶在query string裡
+			// （2026-09-11使用者拍板：拿掉手動輸入欄位），這裡只是原樣讀出、不重算。
+			// 缺任一值視為prepare-flow沒有正常走過（例如URL被手動竄改），讓兩者都
+			// 是0——runCombinedFlow看到0會在補TRX步驟自然視為「不需要補」而非拋錯，
+			// 不需要在這裡另外擋（該頁本來就要求逐筆核對衍生地址與已知地址相符）。
+			if amt, err := strconv.ParseInt(r.URL.Query().Get("first_amount_per_order"), 10, 64); err == nil && amt > 0 {
+				page.FirstAmountPerOrder = amt
+			}
+			if amt, err := strconv.ParseInt(r.URL.Query().Get("repeat_amount_per_order"), 10, 64); err == nil && amt > 0 {
+				page.RepeatAmountPerOrder = amt
 			}
 
 			// 進頁先跑一次 ReconcileBroadcasting (ADR-0017 決策6「可重入」的基礎):

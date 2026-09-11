@@ -217,10 +217,26 @@ func createFeeTopupBatchHandler(deps Deps) http.HandlerFunc {
 // 手續費與 USDT 歸集整合為單一流程). It creates BOTH batches the integrated
 // sign page needs (one consolidation_batches row for the USDT drains, one
 // fee_topup_batches row for the TRX top-ups) from a single form submission,
-// then hands off to the combined sign page. Validation mirrors the two
-// legacy handlers exactly (master wallet exists, addresses well-formed,
-// amount via parseTRXAmount, orders via parseOrderIDs) — this is a fund-
-// moving 起手式, gated by RequireTOTPCode at the route (安全鐵律9).
+// automatically computes the first/repeat TRX top-up amounts itself (no
+// manual「每筆金額」input — 2026-09-11使用者拍板，見docs/進度.md), then hands off
+// to the combined sign page.
+//
+// TOTP note (2026-09-11): this route deliberately does NOT require
+// RequireTOTPCode — it only creates batch bookkeeping rows (destination/
+// fee-source addresses, no funds move). The actual step-up requirement is
+// consolidated entirely at the point signing/broadcasting happens: the
+// combined sign page's own totp-code-input, consumed by the first
+// /tron-proxy/{consolidation,fee-topup}/prepare call (RequireTOTPCodeOrRecentStepUp).
+// This means GET /admin/consolidation/sign is also plain RequireSession now
+// (see routes.go) — if it still required a fresh step-up, the operator would
+// hit the reverify-totp interstitial as an unwanted THIRD prompt between
+// this route and the sign page's own TOTP field, which is exactly the
+// friction this change removes. An attacker holding only a stolen session
+// cookie (no 2FA device) can still not move any funds: every prepare/
+// broadcast call remains gated, and page.js's on-page item table lets the
+// operator visually confirm destination/fee-source addresses (安全鐵律4的
+// 自我核對延伸) before they ever type their master-wallet mnemonic + a valid
+// TOTP code.
 //
 // Atomicity note: the two batch inserts are NOT wrapped in a single DB
 // transaction. CreateConsolidationBatch/CreateFeeTopupBatch each write via
@@ -260,17 +276,25 @@ func createFlowHandler(deps Deps) http.HandlerFunc {
 		feeSource := strings.TrimSpace(r.FormValue("fee_source"))
 		feeSourceAddress := strings.TrimSpace(r.FormValue("fee_source_address"))
 
-		// Validate the two inputs that can fail purely on their own value
-		// BEFORE creating any batch row, so a bad amount/selection never
-		// leaves an orphan batch behind.
-		amountPerOrder, err := parseTRXAmount(r.FormValue("amount_per_order"))
-		if err != nil {
-			http.Error(w, "invalid amount_per_order: "+err.Error(), http.StatusBadRequest)
+		if !isValidTronAddress(destinationAddress) {
+			http.Error(w, "invalid destination address format", http.StatusBadRequest)
 			return
 		}
 		orderIDs, err := parseOrderIDs(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// 每筆補款金額改由伺服器自動試算、直接帶去簽名頁——不再要求商戶在本頁手動
+		// 輸入/抄一次試算結果（2026-09-11使用者拍板，見docs/進度.md與ADR-0017）。
+		// 在建立任何batch列之前先算，估算失敗（例如TronGrid暫時不可用）就不留下
+		// 空batch。首筆/其餘筆金額分開算（精省手續費，ADR-0017決策2），送出前
+		// 都已確定，不需要簽名頁再讓商戶臨時輸入。
+		firstAmountSun, repeatAmountSun, _, _, _, err := estimateConsolidationFeesSun(ctx, deps, masterWalletID, destinationAddress, orderIDs[0])
+		if err != nil {
+			log.Printf("consolidation: create flow (fee estimate): %v", err)
+			http.Error(w, "fee estimate failed: "+err.Error(), http.StatusBadGateway)
 			return
 		}
 
@@ -308,7 +332,8 @@ func createFlowHandler(deps Deps) http.HandlerFunc {
 			"fee_source":             feeSource,
 			"fee_source_address":     feeSourceAddress,
 			"order_ids":              orderIDs,
-			"amount_per_order":       amountPerOrder,
+			"first_amount_sun":       firstAmountSun,
+			"repeat_amount_sun":      repeatAmountSun,
 		})
 
 		q := url.Values{}
@@ -318,7 +343,8 @@ func createFlowHandler(deps Deps) http.HandlerFunc {
 		for _, id := range orderIDs {
 			q.Add("order_id", strconv.FormatInt(id, 10))
 		}
-		q.Set("amount_per_order", strconv.FormatInt(amountPerOrder, 10))
+		q.Set("first_amount_per_order", strconv.FormatInt(firstAmountSun, 10))
+		q.Set("repeat_amount_per_order", strconv.FormatInt(repeatAmountSun, 10))
 		http.Redirect(w, r, "/admin/consolidation/sign?"+q.Encode(), http.StatusSeeOther)
 	}
 }
