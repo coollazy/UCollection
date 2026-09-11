@@ -21,7 +21,7 @@
 <p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
 
 <table border="1" cellpadding="4">
-  <tr><th>ID</th><th>actor</th><th>action_type</th><th>target_type</th><th>target_id</th><th>detail</th><th>建立時間</th></tr>
+  <tr><th>ID</th><th>actor</th><th>action_type</th><th>target_type</th><th>target_id</th><th>說明</th><th>建立時間</th></tr>
   {{range .Entries}}
   <tr>
     <td>{{.ID}}</td>
@@ -29,7 +29,7 @@
     <td>{{.ActionType}}</td>
     <td>{{if .TargetType}}{{.TargetType}}{{end}}</td>
     <td>{{if .TargetID}}{{if .IsOrderTarget}}<a href="/admin/orders/{{.TargetID}}">{{.TargetID}}</a>{{else}}{{.TargetID}}{{end}}{{end}}</td>
-    <td>{{range $k, $v := .Detail}}{{$k}}={{$v}} {{end}}</td>
+    <td>{{desc .}}</td>
     <td>{{ts .CreatedAt}}</td>
   </tr>
   {{end}}

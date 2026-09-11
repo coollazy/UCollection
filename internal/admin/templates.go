@@ -19,7 +19,7 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp}).ParseFS(templateFS, "templates/*.html"))
+var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp, "desc": describeAuditLog}).ParseFS(templateFS, "templates/*.html"))
 
 // formatMicroAmount converts a stored smallest-unit integer (6 decimals —
 // true for both USDT-TRC20 and TRX's sun) into a human-readable decimal

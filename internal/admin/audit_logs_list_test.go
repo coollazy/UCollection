@@ -15,7 +15,7 @@ func TestAuditLogsListHandler_FiltersAndShowsDetail(t *testing.T) {
 	resetDB(t, pool)
 	targetType := "order"
 	targetID := int64(7)
-	if err := audit.Log(t.Context(), pool, "admin", "ORDER_MANUAL_CREATED", &targetType, &targetID, map[string]any{"note": "hello"}); err != nil {
+	if err := audit.Log(t.Context(), pool, "admin", "ORDER_MANUAL_CREATED", &targetType, &targetID, map[string]any{"merchant_order_no": "hello", "target_amount": int64(30000000)}); err != nil {
 		t.Fatalf("audit.Log() error = %v", err)
 	}
 	if err := audit.Log(t.Context(), pool, "admin", "LOGIN_SUCCESS", nil, nil, nil); err != nil {
@@ -39,8 +39,8 @@ func TestAuditLogsListHandler_FiltersAndShowsDetail(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	text := string(body)
 
-	if !strings.Contains(text, "note=hello") {
-		t.Errorf("body missing expanded detail, got: %s", text)
+	if !strings.Contains(text, "商戶訂單編號：hello") || !strings.Contains(text, "目標金額：30 USDT") {
+		t.Errorf("body missing human-readable detail description, got: %s", text)
 	}
 	if strings.Contains(text, "LOGIN_SUCCESS") {
 		t.Errorf("filtered-out entry should not appear, got: %s", text)
