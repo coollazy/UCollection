@@ -81,5 +81,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	// RequireTOTPCode，不能只掛一般登入session。
 	mux.Handle("POST /admin/consolidation/batches", requireTOTPCode(createConsolidationBatchHandler(deps), toConsolidationPending))
 	mux.Handle("POST /admin/consolidation/fee-topup-batches", requireTOTPCode(createFeeTopupBatchHandler(deps), toConsolidationPending))
+	// /admin/consolidation/prepare-flow — 手動歸集流程重構Phase4（ADR-0017）：填寫頁
+	// 合併後的單一「準備歸集」submit 送到這裡，一次建立 consolidation batch +
+	// fee-topup batch 並導向整合簽名頁（type=combined）。舊的 batches/
+	// fee-topup-batches 路由保留不刪（既有測試與相容性），只是填寫頁不再送到它們。
+	// 比照批次建立同屬資金操作起手式，套用 RequireTOTPCode。
+	mux.Handle("POST /admin/consolidation/prepare-flow", requireTOTPCode(createFlowHandler(deps), toConsolidationPending))
 	mux.Handle("GET /admin/consolidation/sign", requireTOTPCode(signPageHandler(deps), auth.SelfPath))
 }

@@ -1,6 +1,7 @@
 package consolidation
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -22,11 +23,29 @@ const signCSPHeader = "default-src 'none'; script-src 'self'; connect-src 'self'
 // what the post-signature self-check must match — CLAUDE.md安全鐵律4); in
 // fee-topup mode it's the recipient of that item's TRX transfer (the
 // signer/self-check address is FeeSourceAddress instead, shared by every
-// item in the batch).
+// item in the batch). In combined mode Address is again the source order's
+// own address, and it doubles as both the TRX top-up recipient and the USDT
+// drain source.
+//
+// The on-chain snapshot fields (USDTBalance/TRXBalance/AlreadyConsolidated)
+// are populated ONLY for type="combined" (ADR-0017 決策6/7「最小持久化、靠鏈上
+// 現況推導」可重入基礎): they give the Phase 4b frontend orchestrator each
+// address's current standing so it can decide, on this or a re-entry visit,
+// which item is the first-time (energy-expensive) consolidation, how much
+// TRX each still needs, and which orders are already done. They stay zero
+// for the legacy consolidation/fee-topup modes, which don't query the chain
+// here. OnChainError flags an item whose on-chain lookup failed so the
+// frontend can tell "genuinely zero / not yet consolidated" apart from
+// "unknown, don't act on this yet" — a failed query never blocks the whole
+// page from rendering.
 type signItem struct {
-	OrderID         int64  `json:"order_id"`
-	Address         string `json:"address"`
-	DerivationIndex int64  `json:"derivation_index"`
+	OrderID             int64  `json:"order_id"`
+	Address             string `json:"address"`
+	DerivationIndex     int64  `json:"derivation_index"`
+	USDTBalance         int64  `json:"usdt_balance"`         // combined only, 最小單位 int64 (安全鐵律6)
+	TRXBalance          int64  `json:"trx_balance"`          // combined only, sun int64
+	AlreadyConsolidated bool   `json:"already_consolidated"` // combined only
+	OnChainError        bool   `json:"onchain_error,omitempty"`
 }
 
 // signPageJSON is what gets embedded into consolidation_sign.html as
@@ -35,14 +54,16 @@ type signItem struct {
 // xpub, IDs) — the browser still requires the operator's own mnemonic/
 // private key input to do anything with them.
 type signPageJSON struct {
-	Type                  string     `json:"type"` // "consolidation" | "fee-topup"
-	BatchID               int64      `json:"batch_id"`
+	Type                  string     `json:"type"`                             // "consolidation" | "fee-topup" | "combined"
+	BatchID               int64      `json:"batch_id,omitempty"`               // consolidation/fee-topup only
+	ConsolidationBatchID  int64      `json:"consolidation_batch_id,omitempty"` // combined only
+	FeeTopupBatchID       int64      `json:"fee_topup_batch_id,omitempty"`     // combined only
 	MasterWalletID        int64      `json:"master_wallet_id"`
-	Xpub                  string     `json:"xpub,omitempty"`                     // consolidation only
-	DestinationAddress    string     `json:"destination_address,omitempty"`      // consolidation only
-	FeeSource             string     `json:"fee_source,omitempty"`               // fee-topup only
-	FeeSourceAddress      string     `json:"fee_source_address,omitempty"`       // fee-topup only
-	DefaultAmountPerOrder int64      `json:"default_amount_per_order,omitempty"` // fee-topup only, prefill
+	Xpub                  string     `json:"xpub,omitempty"`                     // consolidation/combined
+	DestinationAddress    string     `json:"destination_address,omitempty"`      // consolidation/combined
+	FeeSource             string     `json:"fee_source,omitempty"`               // fee-topup/combined
+	FeeSourceAddress      string     `json:"fee_source_address,omitempty"`       // fee-topup/combined
+	DefaultAmountPerOrder int64      `json:"default_amount_per_order,omitempty"` // fee-topup/combined prefill
 	Items                 []signItem `json:"items"`
 }
 
@@ -51,7 +72,7 @@ type signPageData struct {
 	PageDataJSON string // pre-marshaled JSON text, embedded via ordinary (non-JS-context) auto-escaping — see templates/consolidation_sign.html
 }
 
-var errInvalidSignType = errors.New("consolidation: type must be consolidation or fee-topup")
+var errInvalidSignType = errors.New("consolidation: type must be consolidation, fee-topup, or combined")
 
 // signPageHandler implements GET /admin/consolidation/sign (技術架構設計第10節
 // 「助記詞輸入與私鑰衍生」). Loads the batch the operator just created via
@@ -64,22 +85,23 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 		ctx := r.Context()
 
 		kind := r.URL.Query().Get("type")
-		if kind != "consolidation" && kind != "fee-topup" {
+		if kind != "consolidation" && kind != "fee-topup" && kind != "combined" {
 			http.Error(w, errInvalidSignType.Error(), http.StatusBadRequest)
 			return
 		}
 
-		batchID, err := strconv.ParseInt(r.URL.Query().Get("batch_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid batch_id", http.StatusBadRequest)
-			return
-		}
-
 		var masterWalletID int64
-		page := signPageJSON{Type: kind, BatchID: batchID}
+		page := signPageJSON{Type: kind}
 
 		switch kind {
 		case "consolidation":
+			batchID, err := strconv.ParseInt(r.URL.Query().Get("batch_id"), 10, 64)
+			if err != nil {
+				http.Error(w, "invalid batch_id", http.StatusBadRequest)
+				return
+			}
+			page.BatchID = batchID
+
 			batch, err := loadConsolidationBatch(ctx, deps.Pool, batchID)
 			if errors.Is(err, errRowNotFound) {
 				http.Error(w, "batch not found", http.StatusNotFound)
@@ -100,6 +122,13 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 			page.Xpub = wallet.Xpub
 
 		case "fee-topup":
+			batchID, err := strconv.ParseInt(r.URL.Query().Get("batch_id"), 10, 64)
+			if err != nil {
+				http.Error(w, "invalid batch_id", http.StatusBadRequest)
+				return
+			}
+			page.BatchID = batchID
+
 			batch, err := loadFeeTopupBatch(ctx, deps.Pool, batchID)
 			if errors.Is(err, errRowNotFound) {
 				http.Error(w, "batch not found", http.StatusNotFound)
@@ -115,6 +144,81 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 
 			if amt, err := strconv.ParseInt(r.URL.Query().Get("amount_per_order"), 10, 64); err == nil && amt > 0 {
 				page.DefaultAmountPerOrder = amt
+			}
+
+		case "combined":
+			// The integrated flow (ADR-0017): one page carries BOTH the
+			// consolidation batch (USDT drains, from the master wallet's HD
+			// tree — needs Xpub + DestinationAddress) and the fee-topup batch
+			// (TRX top-ups from the operator-specified source — needs
+			// FeeSource/FeeSourceAddress). The consolidation batch's master
+			// wallet is authoritative; the fee-topup batch is loaded only for
+			// its source fields.
+			consBatchID, err := strconv.ParseInt(r.URL.Query().Get("consolidation_batch_id"), 10, 64)
+			if err != nil {
+				http.Error(w, "invalid consolidation_batch_id", http.StatusBadRequest)
+				return
+			}
+			feeBatchID, err := strconv.ParseInt(r.URL.Query().Get("fee_topup_batch_id"), 10, 64)
+			if err != nil {
+				http.Error(w, "invalid fee_topup_batch_id", http.StatusBadRequest)
+				return
+			}
+			page.ConsolidationBatchID = consBatchID
+			page.FeeTopupBatchID = feeBatchID
+
+			consBatch, err := loadConsolidationBatch(ctx, deps.Pool, consBatchID)
+			if errors.Is(err, errRowNotFound) {
+				http.Error(w, "consolidation batch not found", http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			masterWalletID = consBatch.MasterWalletID
+			page.DestinationAddress = consBatch.DestinationAddress
+
+			feeBatch, err := loadFeeTopupBatch(ctx, deps.Pool, feeBatchID)
+			if errors.Is(err, errRowNotFound) {
+				http.Error(w, "fee-topup batch not found", http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			if feeBatch.MasterWalletID != masterWalletID {
+				// Both batches are created together by createFlowHandler for the
+				// same wallet, so this only happens if the two IDs were tampered
+				// with in the URL to point at unrelated batches. Refuse rather
+				// than render a page mixing two wallets' addresses.
+				http.Error(w, "batches belong to different master wallets", http.StatusBadRequest)
+				return
+			}
+			page.FeeSource = feeBatch.FeeSource
+			page.FeeSourceAddress = feeBatch.FeeSourceAddress
+
+			wallet, err := getMasterWallet(ctx, deps.Pool, masterWalletID)
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			page.Xpub = wallet.Xpub
+
+			if amt, err := strconv.ParseInt(r.URL.Query().Get("amount_per_order"), 10, 64); err == nil && amt > 0 {
+				page.DefaultAmountPerOrder = amt
+			}
+
+			// 進頁先跑一次 ReconcileBroadcasting (ADR-0017 決策6「可重入」的基礎):
+			// resolve any items still stuck in 'broadcasting' from a prior
+			// interrupted run before we snapshot each address's on-chain
+			// standing, so the snapshot the frontend orchestrates against
+			// reflects settled state. A reconcile error must not blank the
+			// whole page — log and carry on; the per-item snapshot below is
+			// itself best-effort for the same reason.
+			if err := ReconcileBroadcasting(ctx, deps, &masterWalletID); err != nil {
+				log.Printf("consolidation: sign page (combined): reconcile broadcasting: %v", err)
 			}
 		}
 		page.MasterWalletID = masterWalletID
@@ -133,11 +237,15 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 				log.Printf("consolidation: sign page: order %d belongs to a different master wallet, skipping", orderID)
 				continue
 			}
-			page.Items = append(page.Items, signItem{
+			item := signItem{
 				OrderID:         ord.ID,
 				Address:         ord.Address,
 				DerivationIndex: ord.DerivationIndex,
-			})
+			}
+			if kind == "combined" {
+				populateOnChainSnapshot(ctx, deps, ord, &item)
+			}
+			page.Items = append(page.Items, item)
 		}
 
 		pageJSON, err := json.Marshal(page)
@@ -151,5 +259,32 @@ func signPageHandler(deps Deps) http.HandlerFunc {
 			Type:         kind,
 			PageDataJSON: string(pageJSON),
 		})
+	}
+}
+
+// populateOnChainSnapshot fills a combined-mode signItem's on-chain fields
+// from live TronGrid reads plus the persisted consolidation_status. Every
+// on-chain lookup is best-effort: a failure is logged, marks OnChainError,
+// and leaves the balance at zero rather than failing the whole page —
+// 技術架構設計第10節/ADR-0017 want a page that still renders (so the operator can
+// see what did resolve) when one address's query hiccups. AlreadyConsolidated
+// comes straight from the order row and never fails.
+func populateOnChainSnapshot(ctx context.Context, deps Deps, ord order.Order, item *signItem) {
+	item.AlreadyConsolidated = ord.ConsolidationStatus == order.ConsolidationConsolidated
+
+	usdt, err := deps.TronClient.TRC20Balance(ctx, ord.Address, deps.USDTContractAddress)
+	if err != nil {
+		log.Printf("consolidation: sign page (combined): USDT balance for order %d (%s): %v", ord.ID, ord.Address, err)
+		item.OnChainError = true
+	} else {
+		item.USDTBalance = usdt
+	}
+
+	trx, err := deps.TronClient.AccountTRXBalance(ctx, ord.Address)
+	if err != nil {
+		log.Printf("consolidation: sign page (combined): TRX balance for order %d (%s): %v", ord.ID, ord.Address, err)
+		item.OnChainError = true
+	} else {
+		item.TRXBalance = trx
 	}
 }

@@ -27,7 +27,7 @@
   </table>
 
   <h2>開始歸集</h2>
-  <p>將上方勾選地址的鏈上USDT餘額全額轉入下方目的地地址，下一步會進入簽名頁，需要輸入本代收主錢包助記詞。</p>
+  <p>將上方勾選地址的鏈上USDT餘額全額轉入下方目的地地址，並在同一流程內先為這些地址補足所需TRX手續費。下一步會進入整合簽名頁，需要輸入本代收主錢包助記詞與TRX來源金鑰。</p>
   <p>
     <label>目的地地址
     {{if .AddressBook}}
@@ -41,10 +41,9 @@
     <button type="button" id="fee-estimate-btn">手續費試算</button>
   </p>
   <div id="fee-estimate-result"></div>
-  <p><button type="submit" formaction="/admin/consolidation/batches">開始歸集</button></p>
 
   <h2>TRX手續費補充</h2>
-  <p>對上方勾選地址逐一補充TRX手續費（供後續組交易/廣播消耗能量用），下一步同樣會進入簽名頁。</p>
+  <p>為上方勾選地址逐一補充TRX手續費（供組交易/廣播消耗能量用），與USDT歸集在同一流程內完成。</p>
   <p><label>手續費支付方式 <select id="fee-payment-method">
     <option value="trx" selected>支付 TRX</option>
   </select></label></p>
@@ -62,7 +61,8 @@
   </p>
   <p><label>每筆金額（TRX） <input type="text" name="amount_per_order" placeholder="例如 3 或 3.5"></label></p>
   </div>
-  <p><button type="submit" formaction="/admin/consolidation/fee-topup-batches">補充手續費</button></p>
+
+  <p><button type="submit" formaction="/admin/consolidation/prepare-flow">準備歸集</button></p>
   </form>
 {{end}}
 <script src="/static/js/address-book-select.js"></script>

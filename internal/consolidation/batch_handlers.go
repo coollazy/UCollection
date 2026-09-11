@@ -211,3 +211,114 @@ func createFeeTopupBatchHandler(deps Deps) http.HandlerFunc {
 		http.Redirect(w, r, signRedirectURL("fee-topup", batchID, orderIDs)+"&"+q.Encode(), http.StatusSeeOther)
 	}
 }
+
+// createFlowHandler implements POST /admin/consolidation/prepare-flow — the
+// merged「準備歸集」submit on consolidation_pending.html (ADR-0017: 補 TRX
+// 手續費與 USDT 歸集整合為單一流程). It creates BOTH batches the integrated
+// sign page needs (one consolidation_batches row for the USDT drains, one
+// fee_topup_batches row for the TRX top-ups) from a single form submission,
+// then hands off to the combined sign page. Validation mirrors the two
+// legacy handlers exactly (master wallet exists, addresses well-formed,
+// amount via parseTRXAmount, orders via parseOrderIDs) — this is a fund-
+// moving 起手式, gated by RequireTOTPCode at the route (安全鐵律9).
+//
+// Atomicity note: the two batch inserts are NOT wrapped in a single DB
+// transaction. CreateConsolidationBatch/CreateFeeTopupBatch each write via
+// deps.Pool directly and don't accept an external querier; rather than
+// refactor both (and everything else that calls them) to thread a tx, this
+// deliberately accepts non-atomic creation. All input validation that can
+// fail (amount, order_ids) runs BEFORE any insert, and the consolidation
+// batch is created first: if the fee-topup insert then fails (e.g. a
+// malformed fee_source_address), the already-created consolidation_batches
+// row is a harmless empty shell — it has no consolidation_items, moves no
+// funds, and is simply never navigated to (the operator just re-submits).
+// No partial-failure state can put money at risk, so a transaction buys
+// nothing here.
+func createFlowHandler(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		masterWalletID, err := strconv.ParseInt(r.FormValue("master_wallet_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid master_wallet_id", http.StatusBadRequest)
+			return
+		}
+		if _, err := getMasterWallet(ctx, deps.Pool, masterWalletID); err != nil {
+			if errors.Is(err, errRowNotFound) {
+				http.Error(w, "master wallet not found", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		destinationAddress := strings.TrimSpace(r.FormValue("destination_address"))
+		feeSource := strings.TrimSpace(r.FormValue("fee_source"))
+		feeSourceAddress := strings.TrimSpace(r.FormValue("fee_source_address"))
+
+		// Validate the two inputs that can fail purely on their own value
+		// BEFORE creating any batch row, so a bad amount/selection never
+		// leaves an orphan batch behind.
+		amountPerOrder, err := parseTRXAmount(r.FormValue("amount_per_order"))
+		if err != nil {
+			http.Error(w, "invalid amount_per_order: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		orderIDs, err := parseOrderIDs(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		consolidationBatchID, err := CreateConsolidationBatch(ctx, deps, masterWalletID, destinationAddress)
+		if err != nil {
+			if errors.Is(err, errInvalidAddressFormat) {
+				http.Error(w, "invalid destination address format", http.StatusBadRequest)
+				return
+			}
+			log.Printf("consolidation: create flow (consolidation batch): %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		feeTopupBatchID, err := CreateFeeTopupBatch(ctx, deps, masterWalletID, feeSource, feeSourceAddress)
+		if err != nil {
+			switch {
+			case errors.Is(err, errInvalidFeeSource):
+				http.Error(w, "fee_source must be A1 or A2", http.StatusBadRequest)
+			case errors.Is(err, errInvalidAddressFormat):
+				http.Error(w, "invalid fee_source_address format", http.StatusBadRequest)
+			default:
+				log.Printf("consolidation: create flow (fee-topup batch): %v", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		targetType := "consolidation_batch"
+		_ = audit.Log(ctx, deps.Pool, "admin", "CONSOLIDATION_FLOW_CREATED", &targetType, &consolidationBatchID, map[string]any{
+			"master_wallet_id":       masterWalletID,
+			"consolidation_batch_id": consolidationBatchID,
+			"fee_topup_batch_id":     feeTopupBatchID,
+			"destination_address":    destinationAddress,
+			"fee_source":             feeSource,
+			"fee_source_address":     feeSourceAddress,
+			"order_ids":              orderIDs,
+			"amount_per_order":       amountPerOrder,
+		})
+
+		q := url.Values{}
+		q.Set("type", "combined")
+		q.Set("consolidation_batch_id", strconv.FormatInt(consolidationBatchID, 10))
+		q.Set("fee_topup_batch_id", strconv.FormatInt(feeTopupBatchID, 10))
+		for _, id := range orderIDs {
+			q.Add("order_id", strconv.FormatInt(id, 10))
+		}
+		q.Set("amount_per_order", strconv.FormatInt(amountPerOrder, 10))
+		http.Redirect(w, r, "/admin/consolidation/sign?"+q.Encode(), http.StatusSeeOther)
+	}
+}

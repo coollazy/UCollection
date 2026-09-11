@@ -352,7 +352,7 @@ func TestRequireTOTPCodeOrRecentStepUp_BatchGrace(t *testing.T) {
 		}
 	})
 
-	// GET doesn't ride RequireTOTPCodeOrRecentStepUp's 15-minute batch grace
+	// GET doesn't ride RequireTOTPCodeOrRecentStepUp's 30-minute batch grace
 	// window — it only ever gets reverifyRedirectGrace's much shorter
 	// exemption (30s, just enough to cover reverifySubmitHandler's own
 	// redirect hop back to the GET page it originally challenged — see
@@ -382,7 +382,7 @@ func TestRequireTOTPCodeOrRecentStepUp_BatchGrace(t *testing.T) {
 		}
 
 		// Backdate past reverifyRedirectGrace (30s) but still well within
-		// batchStepUpWindow (15min) — simulates the operator having
+		// batchStepUpWindow (30min) — simulates the operator having
 		// stepped up a minute ago, then separately navigating to a
 		// GET-protected page; must challenge again, not silently pass.
 		if _, err := pool.Exec(context.Background(), `UPDATE admin_sessions SET last_stepup_verified_at = now() - interval '1 minute' WHERE token_hash = $1`, hashToken(token)); err != nil {

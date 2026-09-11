@@ -141,7 +141,14 @@ func RequireTOTPCodeOrRecentStepUp(deps Deps, returnTo func(*http.Request) strin
 // return to ADR-0011's old always-on 15-minute window (that applied to 13
 // routes including ones an operator might not touch again for hours; this
 // applies to 4 routes only for the duration of one batch run).
-const batchStepUpWindow = 15 * time.Minute
+//
+// 30分鐘（ADR-0017 決策8 修訂 ADR-0016 的原 15 分鐘）：手動歸集整合為單一編排
+// 流程後，一次「準備歸集」會在同一批次內先補 TRX、等 TRX 上鏈、廣播首筆 USDT、
+// 等首筆上鏈使目的地啟用、再補其餘與廣播——中間含多次「等鏈上確認」的等待，
+// 單批很容易超過 15 分鐘造成頻繁中斷。延長只影響這 4 條歸集 /tron-proxy 端點、
+// 且仍須批次內第一次呼叫送出新鮮 TOTP 才能啟動（攻擊者僅取 session cookie、未取
+// 2FA 裝置仍完全無法發起任何一次歸集，核心防線不變）。
+const batchStepUpWindow = 30 * time.Minute
 
 // reverifyRedirectGrace fixes a real redirect loop found 2026-09-08 testing
 // GET /admin/password: reverifySubmitHandler's success path 303-redirects

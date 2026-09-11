@@ -112,6 +112,92 @@ func TestSignPageHandler_FeeTopup(t *testing.T) {
 	}
 }
 
+// TestSignPageHandler_Combined ADR-0017 Phase 4a: type=combined loads BOTH
+// batches (consolidation for Xpub/destination, fee-topup for source), embeds
+// them on one page, and attaches each order's live on-chain snapshot (USDT
+// balance, TRX balance, already-consolidated flag) for the Phase 4b frontend
+// orchestrator / re-entry logic.
+func TestSignPageHandler_Combined(t *testing.T) {
+	pool := testPool(t)
+	resetDB(t, pool)
+	walletID := newMasterWallet(t, pool)
+	ord := newOrder(t, pool, walletID, "order-1")
+
+	mock := newMockTronGrid()
+	// Per order the handler queries USDT balance (triggerconstantcontract)
+	// then TRX balance (getaccount). No items are 'broadcasting', so the
+	// entry-point ReconcileBroadcasting makes no calls.
+	mock.enqueue("/wallet/triggerconstantcontract", http.StatusOK, constantContractBalanceFixture(42_000000))
+	mock.enqueue("/wallet/getaccount", http.StatusOK, `{"balance":5000000}`)
+	tc := mock.start(t)
+	deps := Deps{Pool: pool, TronClient: tc, USDTContractAddress: testUSDTContract}
+
+	consBatchID, err := CreateConsolidationBatch(context.Background(), deps, walletID, testDestinationAddress)
+	if err != nil {
+		t.Fatalf("CreateConsolidationBatch() error = %v", err)
+	}
+	feeBatchID, err := CreateFeeTopupBatch(context.Background(), deps, walletID, "A1", testSourceAddress)
+	if err != nil {
+		t.Fatalf("CreateFeeTopupBatch() error = %v", err)
+	}
+
+	path := "/admin/consolidation/sign?" + url.Values{
+		"type":                   {"combined"},
+		"consolidation_batch_id": {strconv.FormatInt(consBatchID, 10)},
+		"fee_topup_batch_id":     {strconv.FormatInt(feeBatchID, 10)},
+		"order_id":               {strconv.FormatInt(ord.ID, 10)},
+		"amount_per_order":       {"3500000"},
+	}.Encode()
+	resp := callSignPageHandler(t, deps, path)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", resp.StatusCode, readBody(t, resp))
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); got != signCSPHeader {
+		t.Fatalf("CSP header = %q, want %q", got, signCSPHeader)
+	}
+
+	page := extractPageData(t, readBody(t, resp))
+	if page.Type != "combined" || page.MasterWalletID != walletID {
+		t.Fatalf("page = %+v, want type=combined master_wallet_id=%d", page, walletID)
+	}
+	if page.ConsolidationBatchID != consBatchID || page.FeeTopupBatchID != feeBatchID {
+		t.Fatalf("batch ids = (%d,%d), want (%d,%d)", page.ConsolidationBatchID, page.FeeTopupBatchID, consBatchID, feeBatchID)
+	}
+	if page.Xpub != testXpub {
+		t.Fatalf("Xpub = %q, want %q", page.Xpub, testXpub)
+	}
+	if page.DestinationAddress != testDestinationAddress {
+		t.Fatalf("DestinationAddress = %q, want %q", page.DestinationAddress, testDestinationAddress)
+	}
+	if page.FeeSource != "A1" || page.FeeSourceAddress != testSourceAddress {
+		t.Fatalf("fee source = (%q,%q), want (A1,%q)", page.FeeSource, page.FeeSourceAddress, testSourceAddress)
+	}
+	if page.DefaultAmountPerOrder != 3500000 {
+		t.Fatalf("DefaultAmountPerOrder = %d, want 3500000", page.DefaultAmountPerOrder)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("Items = %+v, want single item", page.Items)
+	}
+	it := page.Items[0]
+	if it.OrderID != ord.ID || it.Address != ord.Address || it.DerivationIndex != ord.DerivationIndex {
+		t.Fatalf("item core = %+v, want match for order %+v", it, ord)
+	}
+	if it.USDTBalance != 42_000000 || it.TRXBalance != 5000000 || it.AlreadyConsolidated || it.OnChainError {
+		t.Fatalf("item on-chain snapshot = %+v, want usdt=42000000 trx=5000000 consolidated=false onchain_error=false", it)
+	}
+}
+
+func TestSignPageHandler_CombinedBatchNotFound(t *testing.T) {
+	pool := testPool(t)
+	resetDB(t, pool)
+	deps := Deps{Pool: pool}
+
+	resp := callSignPageHandler(t, deps, "/admin/consolidation/sign?type=combined&consolidation_batch_id=999999&fee_topup_batch_id=888888")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body = %s", resp.StatusCode, readBody(t, resp))
+	}
+}
+
 func TestSignPageHandler_InvalidType(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
