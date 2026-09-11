@@ -13,7 +13,7 @@
   <input type="hidden" name="master_wallet_id" value="{{.MasterWalletID}}">
   <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
   <table border="1" cellpadding="4">
-    <tr><th></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（USDT）</th><th>鏈上餘額（USDT）</th></tr>
+    <tr><th><label><input type="checkbox" id="select-all-orders"> 全選</label></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（USDT）</th><th>鏈上餘額（USDT）</th></tr>
     {{range .Entries}}
     <tr>
       <td><input type="checkbox" name="order_id" value="{{.OrderID}}"></td>
@@ -38,24 +38,34 @@
     {{end}}
       <input type="text" name="destination_address" id="dest-addr" placeholder="Txxxxxxxx">
     </label>
+    <button type="button" id="fee-estimate-btn">手續費試算</button>
   </p>
+  <div id="fee-estimate-result"></div>
   <p><button type="submit" formaction="/admin/consolidation/batches">開始歸集</button></p>
 
   <h2>TRX手續費補充</h2>
   <p>對上方勾選地址逐一補充TRX手續費（供後續組交易/廣播消耗能量用），下一步同樣會進入簽名頁。</p>
+  <p><label>手續費支付方式 <select id="fee-payment-method">
+    <option value="trx" selected>支付 TRX</option>
+  </select></label></p>
+  <div id="fee-trx-fields">
   <p><label>來源分類（僅供稽核記錄，技術上無差異） <select name="fee_source">
     <option value="A1">A1（商戶自認與代收主錢包相關的資金來源）</option>
     <option value="A2">A2（商戶自認完全獨立的錢包）</option>
   </select></label></p>
   <p>
     <label>來源地址（商戶自行指定，非代收主錢包HD樹衍生地址）
-      <input type="text" name="fee_source_address">
+      <input type="text" name="fee_source_address" id="fee-source-address">
     </label>
+    <button type="button" id="check-trx-balance-btn">查餘額</button>
+    <span id="trx-balance-result"></span>
   </p>
   <p><label>每筆金額（TRX） <input type="text" name="amount_per_order" placeholder="例如 3 或 3.5"></label></p>
+  </div>
   <p><button type="submit" formaction="/admin/consolidation/fee-topup-batches">補充手續費</button></p>
   </form>
 {{end}}
 <script src="/static/js/address-book-select.js"></script>
+<script src="/static/js/fee-estimate.js"></script>
 </body>
 </html>
