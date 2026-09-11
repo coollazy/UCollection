@@ -79,6 +79,12 @@ export function initSignPage() {
     signButton: document.getElementById('sign-button'),
     signStatus: document.getElementById('sign-status'),
     totpCodeInput: document.getElementById('totp-code-input'),
+    combinedInputs: document.getElementById('combined-inputs'),
+    combinedMasterMnemonic: document.getElementById('combined-master-mnemonic'),
+    combinedFeeMnemonicField: document.getElementById('combined-fee-mnemonic-field'),
+    combinedFeePrivkeyField: document.getElementById('combined-fee-privkey-field'),
+    combinedFeeMnemonic: document.getElementById('combined-fee-mnemonic'),
+    combinedFeePrivkey: document.getElementById('combined-fee-privkey'),
   };
 
   // Set once per handleSignAndBroadcast() run, consumed by exactly the
@@ -389,6 +395,295 @@ export function initSignPage() {
     }
     els.signStatus.textContent = '批次處理完成，請回待歸集列表確認每筆最終結果';
     els.deriveButton.disabled = false;
+  }
+
+  // ===== combined 模式（手動歸集整合流程，ADR-0017）：一頁雙金鑰＋自動編排 =====
+  // 完全獨立於上面的 consolidation/fee-topup 單模式邏輯（那兩者不變）。
+  // 兩道閘門（txIDMatched + verifySignerAddress）由共用的 prepareSignBroadcast
+  // 集中把關，是唯一決定要不要 broadcast 的依據（安全鐵律4）。
+  const masterKeys = new Map(); // order_id -> Uint8Array（代收主錢包衍生，簽 USDT 歸集）
+  let feeSourceKey = null; // Uint8Array（TRX 來源，簽補款）；補完 TRX 後即刻清除
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function wipeFeeSourceKey() {
+    if (feeSourceKey) {
+      feeSourceKey.fill(0);
+      feeSourceKey = null;
+    }
+  }
+
+  // 需處理的項目：未歸集、鏈上有 USDT 餘額、鏈上現況查詢成功。已歸集/無餘額/
+  // 查詢失敗（狀態未知不動）皆排除——這是可重入的依據：重進頁面時 sign.go 會
+  // 重查鏈上現況，自然只留還沒做完的（ADR-0017 決策6/7）。
+  function combinedPendingItems() {
+    return page.items.filter((it) => !it.already_consolidated && it.usdt_balance > 0 && !it.onchain_error);
+  }
+
+  function renderItemsCombined() {
+    els.itemsLoading.hidden = true;
+    els.itemsList.hidden = false;
+    els.itemsList.textContent = '';
+
+    const summary = document.createElement('p');
+    summary.textContent = '目的地地址：' + page.destination_address + '　TRX來源：' + page.fee_source_address + '（分類：' + page.fee_source + '）';
+    els.itemsList.appendChild(summary);
+
+    const table = document.createElement('table');
+    table.setAttribute('border', '1');
+    table.setAttribute('cellpadding', '4');
+    const headerRow = document.createElement('tr');
+    ['訂單ID', '地址', 'USDT餘額', 'TRX餘額', '狀態'].forEach((text) => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    for (const item of page.items) {
+      const row = document.createElement('tr');
+      const idCell = document.createElement('td');
+      idCell.textContent = String(item.order_id);
+      const addrCell = document.createElement('td');
+      addrCell.textContent = item.address;
+      const usdtCell = document.createElement('td');
+      usdtCell.textContent = sunToTrx(item.usdt_balance);
+      const trxCell = document.createElement('td');
+      trxCell.textContent = sunToTrx(item.trx_balance);
+      const statusCell = document.createElement('td');
+      statusCell.id = 'item-status-' + item.order_id;
+      if (item.onchain_error) statusCell.textContent = '鏈上狀態查詢失敗，本次略過';
+      else if (item.already_consolidated) statusCell.textContent = '已歸集，略過';
+      else if (item.usdt_balance > 0) statusCell.textContent = '待處理';
+      else statusCell.textContent = '無餘額，略過';
+      row.append(idCell, addrCell, usdtCell, trxCell, statusCell);
+      table.appendChild(row);
+    }
+    els.itemsList.appendChild(table);
+
+    const amountP = document.createElement('p');
+    const label = document.createElement('label');
+    label.append('每筆補充 TRX 金額 ');
+    amountInput = document.createElement('input');
+    amountInput.type = 'text';
+    if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
+    label.appendChild(amountInput);
+    amountP.appendChild(label);
+    els.itemsList.appendChild(amountP);
+  }
+
+  function combinedFeeMode() {
+    const checked = document.querySelector('input[name="combined-fee-input-mode"]:checked');
+    return checked ? checked.value : 'mnemonic';
+  }
+
+  function wireCombinedFeeMode() {
+    document.querySelectorAll('input[name="combined-fee-input-mode"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        const mode = combinedFeeMode();
+        els.combinedFeeMnemonicField.hidden = mode !== 'mnemonic';
+        els.combinedFeePrivkeyField.hidden = mode !== 'privkey';
+      });
+    });
+  }
+
+  // handleDeriveCombined 核對兩把金鑰後才填 masterKeys/feeSourceKey：代收主錢包
+  // 助記詞逐筆衍生、核對 xpub 與每筆地址（安全鐵律，比照單模式）；TRX 來源錢包
+  // 助記詞/私鑰衍生單一地址、核對等於 fee_source_address。任一不符全部中止清空。
+  function handleDeriveCombined() {
+    els.signButton.disabled = true;
+    els.signStatus.textContent = '核對中...';
+    masterKeys.clear();
+    wipeFeeSourceKey();
+
+    try {
+      const masterMnemonic = els.combinedMasterMnemonic.value;
+      for (const item of page.items) {
+        const derived = deriveConsolidationKey(masterMnemonic, item.derivation_index);
+        if (derived.xpub !== page.xpub) {
+          throw new Error('代收主錢包助記詞衍生的 xpub 與本錢包不符，請確認助記詞');
+        }
+        if (derived.address !== item.address) {
+          throw new Error('訂單 ' + item.order_id + ' 衍生地址與預期不符，已中止');
+        }
+        masterKeys.set(item.order_id, derived.privateKey);
+      }
+
+      const mode = combinedFeeMode();
+      const feeRaw = mode === 'mnemonic' ? els.combinedFeeMnemonic.value : els.combinedFeePrivkey.value;
+      const feeDerived = mode === 'mnemonic' ? deriveFeeTopupKeyFromMnemonic(feeRaw) : feeTopupKeyFromPrivateKeyHex(feeRaw);
+      if (feeDerived.address !== page.fee_source_address) {
+        throw new Error('TRX 來源錢包衍生地址與指定來源地址不符，請確認輸入');
+      }
+      feeSourceKey = feeDerived.privateKey;
+
+      els.signStatus.textContent = '兩把金鑰核對通過，可以開始歸集';
+      els.signButton.disabled = false;
+    } catch (err) {
+      masterKeys.clear();
+      wipeFeeSourceKey();
+      els.signStatus.textContent = '核對失敗：' + err.message;
+    }
+  }
+
+  // prepareSignBroadcast 是 combined 模式唯一呼叫 broadcast 的地方：
+  // prepare→sign→閘門1(txIDMatched)→閘門2(verifySignerAddress)→broadcast，
+  // 兩道閘門任一不過即 throw、不廣播（安全鐵律4）。回傳 { result, txId }。
+  async function prepareSignBroadcast(prepareUrl, prepareBody, broadcastUrl, privateKey, expectedAddress) {
+    const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
+    const { signedTransaction, txIDMatched } = signTransaction(prepared.transaction, privateKey);
+    if (!txIDMatched) {
+      throw new Error('本地重算txID與伺服器回傳不符，已中止，未廣播');
+    }
+    if (!verifySignerAddress(signedTransaction, expectedAddress)) {
+      throw new Error('簽名反推地址與預期不符，已中止，未廣播');
+    }
+    const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction }, consumeTOTPCode());
+    return { result, txId: prepared.tx_id };
+  }
+
+  // waitOnChain 輪詢交易上鏈確認（transaction-info 是唯讀 RequireSession、不需
+  // TOTP）。found&&success 才回；found 但 success=false（如 USDT REVERT）視為
+  // 失敗；逾時亦失敗——讓 runCombinedFlow 停下而非盲目往下做。
+  async function waitOnChain(txId, kind) {
+    const maxTries = 40; // 約 40×3s ≈ 2 分鐘上限
+    for (let i = 0; i < maxTries; i++) {
+      const r = await postJSON('/tron-proxy/consolidation/transaction-info', { tx_id: txId, kind: kind }, consumeTOTPCode());
+      if (r.found && r.success) return;
+      if (r.found && !r.success) {
+        throw new Error('交易上鏈後執行失敗（' + kind + '，txid ' + txId + '）');
+      }
+      await sleep(3000);
+    }
+    throw new Error('等待交易上鏈逾時（' + kind + '，txid ' + txId + '）');
+  }
+
+  // runCombinedFlow：整合流程的自動編排（ADR-0017）。順序有意義：
+  // 補 TRX（逐筆，實補=每筆金額−現有TRX）→ 簽完即刻清 TRX 來源金鑰 →
+  // 等補款上鏈 → 首筆 USDT 歸集並等上鏈成功（啟用目的地）→ 其餘逐筆歸集。
+  // 任一步失敗即停、不硬跑後面；已完成的筆不受影響，重進頁面依鏈上現況續作。
+  async function runCombinedFlow() {
+    const totpCode = els.totpCodeInput.value.trim();
+    if (!totpCode) {
+      els.signStatus.textContent = '請輸入TOTP驗證碼';
+      return;
+    }
+    if (masterKeys.size === 0 || !feeSourceKey) {
+      els.signStatus.textContent = '請先「衍生並核對」兩把金鑰';
+      return;
+    }
+
+    pendingTOTPCode = totpCode;
+    els.signButton.disabled = true;
+    els.deriveButton.disabled = true;
+
+    const pending = combinedPendingItems();
+    if (pending.length === 0) {
+      els.signStatus.textContent = '沒有需要處理的項目（皆已歸集或無餘額）';
+      els.deriveButton.disabled = false;
+      return;
+    }
+    const perOrderSun = trxToSun(amountInput.value);
+
+    try {
+      // 步驟1：逐筆補 TRX（實補 = max(0, 每筆金額 − 現有 TRX)；已足額則跳過）
+      const topupTxByOrder = new Map(); // order_id -> txId（僅有實際補款者）
+      for (const item of pending) {
+        const needSun = perOrderSun - item.trx_balance;
+        if (needSun <= 0) {
+          itemStatusEl(item.order_id).textContent = '已有足夠 TRX，略過補款';
+          continue;
+        }
+        itemStatusEl(item.order_id).textContent = '補 TRX 中...';
+        const topup = await prepareSignBroadcast(
+          '/tron-proxy/fee-topup/prepare',
+          { batch_id: page.fee_topup_batch_id, order_id: item.order_id, amount: needSun },
+          '/tron-proxy/fee-topup/broadcast',
+          feeSourceKey,
+          page.fee_source_address,
+        );
+        topupTxByOrder.set(item.order_id, topup.txId);
+        itemStatusEl(item.order_id).textContent = '補 TRX 已送出，待上鏈';
+      }
+
+      // 步驟2：TRX 來源金鑰任務完成，即刻從記憶體清除（縮短兩金鑰共存窗口）
+      wipeFeeSourceKey();
+
+      // 步驟3：等所有補款 TRX 上鏈（只有實際補款的才需等）
+      for (const [orderId, txId] of topupTxByOrder) {
+        itemStatusEl(orderId).textContent = '等待補 TRX 上鏈...';
+        await waitOnChain(txId, 'trx');
+        itemStatusEl(orderId).textContent = 'TRX 已到帳';
+      }
+
+      // 步驟4：首筆歸集（先啟用目的地）→ 等上鏈成功才做其餘
+      const first = pending[0];
+      itemStatusEl(first.order_id).textContent = '歸集中（首筆）...';
+      const firstRes = await prepareSignBroadcast(
+        '/tron-proxy/consolidation/prepare',
+        { batch_id: page.consolidation_batch_id, order_id: first.order_id },
+        '/tron-proxy/consolidation/broadcast',
+        masterKeys.get(first.order_id),
+        first.address,
+      );
+      itemStatusEl(first.order_id).textContent = '首筆已送出，待上鏈確認...';
+      await waitOnChain(firstRes.txId, 'usdt');
+      itemStatusEl(first.order_id).textContent = statusLabel(firstRes.result.status, firstRes.result.error_detail);
+
+      // 步驟5：其餘逐筆歸集
+      for (let i = 1; i < pending.length; i++) {
+        const item = pending[i];
+        itemStatusEl(item.order_id).textContent = '歸集中...';
+        const res = await prepareSignBroadcast(
+          '/tron-proxy/consolidation/prepare',
+          { batch_id: page.consolidation_batch_id, order_id: item.order_id },
+          '/tron-proxy/consolidation/broadcast',
+          masterKeys.get(item.order_id),
+          item.address,
+        );
+        itemStatusEl(item.order_id).textContent = statusLabel(res.result.status, res.result.error_detail);
+      }
+
+      els.signStatus.textContent = '整批處理完成，請回待歸集列表確認每筆最終結果';
+    } catch (err) {
+      // 失敗停下：不硬跑後面（尤其首筆失敗不續做其餘）。已成功的筆狀態各自已更新。
+      els.signStatus.textContent = '流程中止：' + err.message + '。已完成的項目不受影響；請回待歸集列表查證後重新發起，系統會依鏈上現況只處理尚未完成的部分。';
+    } finally {
+      wipeFeeSourceKey(); // 保險：任何路徑都確保來源金鑰已清除
+      els.deriveButton.disabled = false;
+    }
+  }
+
+  function initCombinedMode() {
+    els.combinedInputs.hidden = false;
+    els.mnemonicField.hidden = true;
+    els.privkeyField.hidden = true;
+    if (els.modeToggle) els.modeToggle.hidden = true;
+
+    renderItemsCombined();
+
+    if (combinedPendingItems().length === 0) {
+      els.signStatus.textContent = '此批次沒有需要處理的項目（皆已歸集或無餘額），請回待歸集列表確認';
+      els.deriveButton.disabled = true;
+      els.signButton.disabled = true;
+      return;
+    }
+
+    wireCombinedFeeMode();
+    els.deriveButton.addEventListener('click', () => {
+      handleDeriveCombined();
+    });
+    els.signButton.addEventListener('click', () => {
+      runCombinedFlow();
+    });
+  }
+
+  // ===== 尾部執行 =====
+  if (page.type === 'combined') {
+    initCombinedMode();
+    return;
   }
 
   renderItems();

@@ -70706,7 +70706,13 @@
       deriveButton: document.getElementById("derive-button"),
       signButton: document.getElementById("sign-button"),
       signStatus: document.getElementById("sign-status"),
-      totpCodeInput: document.getElementById("totp-code-input")
+      totpCodeInput: document.getElementById("totp-code-input"),
+      combinedInputs: document.getElementById("combined-inputs"),
+      combinedMasterMnemonic: document.getElementById("combined-master-mnemonic"),
+      combinedFeeMnemonicField: document.getElementById("combined-fee-mnemonic-field"),
+      combinedFeePrivkeyField: document.getElementById("combined-fee-privkey-field"),
+      combinedFeeMnemonic: document.getElementById("combined-fee-mnemonic"),
+      combinedFeePrivkey: document.getElementById("combined-fee-privkey")
     };
     let pendingTOTPCode = null;
     function consumeTOTPCode() {
@@ -70932,6 +70938,237 @@
       }
       els.signStatus.textContent = "\u6279\u6B21\u8655\u7406\u5B8C\u6210\uFF0C\u8ACB\u56DE\u5F85\u6B78\u96C6\u5217\u8868\u78BA\u8A8D\u6BCF\u7B46\u6700\u7D42\u7D50\u679C";
       els.deriveButton.disabled = false;
+    }
+    const masterKeys = /* @__PURE__ */ new Map();
+    let feeSourceKey = null;
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+    function wipeFeeSourceKey() {
+      if (feeSourceKey) {
+        feeSourceKey.fill(0);
+        feeSourceKey = null;
+      }
+    }
+    function combinedPendingItems() {
+      return page.items.filter((it) => !it.already_consolidated && it.usdt_balance > 0 && !it.onchain_error);
+    }
+    function renderItemsCombined() {
+      els.itemsLoading.hidden = true;
+      els.itemsList.hidden = false;
+      els.itemsList.textContent = "";
+      const summary = document.createElement("p");
+      summary.textContent = "\u76EE\u7684\u5730\u5730\u5740\uFF1A" + page.destination_address + "\u3000TRX\u4F86\u6E90\uFF1A" + page.fee_source_address + "\uFF08\u5206\u985E\uFF1A" + page.fee_source + "\uFF09";
+      els.itemsList.appendChild(summary);
+      const table = document.createElement("table");
+      table.setAttribute("border", "1");
+      table.setAttribute("cellpadding", "4");
+      const headerRow = document.createElement("tr");
+      ["\u8A02\u55AEID", "\u5730\u5740", "USDT\u9918\u984D", "TRX\u9918\u984D", "\u72C0\u614B"].forEach((text) => {
+        const th = document.createElement("th");
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      table.appendChild(headerRow);
+      for (const item of page.items) {
+        const row = document.createElement("tr");
+        const idCell = document.createElement("td");
+        idCell.textContent = String(item.order_id);
+        const addrCell = document.createElement("td");
+        addrCell.textContent = item.address;
+        const usdtCell = document.createElement("td");
+        usdtCell.textContent = sunToTrx(item.usdt_balance);
+        const trxCell = document.createElement("td");
+        trxCell.textContent = sunToTrx(item.trx_balance);
+        const statusCell = document.createElement("td");
+        statusCell.id = "item-status-" + item.order_id;
+        if (item.onchain_error) statusCell.textContent = "\u93C8\u4E0A\u72C0\u614B\u67E5\u8A62\u5931\u6557\uFF0C\u672C\u6B21\u7565\u904E";
+        else if (item.already_consolidated) statusCell.textContent = "\u5DF2\u6B78\u96C6\uFF0C\u7565\u904E";
+        else if (item.usdt_balance > 0) statusCell.textContent = "\u5F85\u8655\u7406";
+        else statusCell.textContent = "\u7121\u9918\u984D\uFF0C\u7565\u904E";
+        row.append(idCell, addrCell, usdtCell, trxCell, statusCell);
+        table.appendChild(row);
+      }
+      els.itemsList.appendChild(table);
+      const amountP = document.createElement("p");
+      const label = document.createElement("label");
+      label.append("\u6BCF\u7B46\u88DC\u5145 TRX \u91D1\u984D ");
+      amountInput = document.createElement("input");
+      amountInput.type = "text";
+      if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
+      label.appendChild(amountInput);
+      amountP.appendChild(label);
+      els.itemsList.appendChild(amountP);
+    }
+    function combinedFeeMode() {
+      const checked = document.querySelector('input[name="combined-fee-input-mode"]:checked');
+      return checked ? checked.value : "mnemonic";
+    }
+    function wireCombinedFeeMode() {
+      document.querySelectorAll('input[name="combined-fee-input-mode"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+          const mode = combinedFeeMode();
+          els.combinedFeeMnemonicField.hidden = mode !== "mnemonic";
+          els.combinedFeePrivkeyField.hidden = mode !== "privkey";
+        });
+      });
+    }
+    function handleDeriveCombined() {
+      els.signButton.disabled = true;
+      els.signStatus.textContent = "\u6838\u5C0D\u4E2D...";
+      masterKeys.clear();
+      wipeFeeSourceKey();
+      try {
+        const masterMnemonic = els.combinedMasterMnemonic.value;
+        for (const item of page.items) {
+          const derived = deriveConsolidationKey(masterMnemonic, item.derivation_index);
+          if (derived.xpub !== page.xpub) {
+            throw new Error("\u4EE3\u6536\u4E3B\u9322\u5305\u52A9\u8A18\u8A5E\u884D\u751F\u7684 xpub \u8207\u672C\u9322\u5305\u4E0D\u7B26\uFF0C\u8ACB\u78BA\u8A8D\u52A9\u8A18\u8A5E");
+          }
+          if (derived.address !== item.address) {
+            throw new Error("\u8A02\u55AE " + item.order_id + " \u884D\u751F\u5730\u5740\u8207\u9810\u671F\u4E0D\u7B26\uFF0C\u5DF2\u4E2D\u6B62");
+          }
+          masterKeys.set(item.order_id, derived.privateKey);
+        }
+        const mode = combinedFeeMode();
+        const feeRaw = mode === "mnemonic" ? els.combinedFeeMnemonic.value : els.combinedFeePrivkey.value;
+        const feeDerived = mode === "mnemonic" ? deriveFeeTopupKeyFromMnemonic(feeRaw) : feeTopupKeyFromPrivateKeyHex(feeRaw);
+        if (feeDerived.address !== page.fee_source_address) {
+          throw new Error("TRX \u4F86\u6E90\u9322\u5305\u884D\u751F\u5730\u5740\u8207\u6307\u5B9A\u4F86\u6E90\u5730\u5740\u4E0D\u7B26\uFF0C\u8ACB\u78BA\u8A8D\u8F38\u5165");
+        }
+        feeSourceKey = feeDerived.privateKey;
+        els.signStatus.textContent = "\u5169\u628A\u91D1\u9470\u6838\u5C0D\u901A\u904E\uFF0C\u53EF\u4EE5\u958B\u59CB\u6B78\u96C6";
+        els.signButton.disabled = false;
+      } catch (err) {
+        masterKeys.clear();
+        wipeFeeSourceKey();
+        els.signStatus.textContent = "\u6838\u5C0D\u5931\u6557\uFF1A" + err.message;
+      }
+    }
+    async function prepareSignBroadcast(prepareUrl, prepareBody, broadcastUrl, privateKey, expectedAddress) {
+      const prepared = await postJSON(prepareUrl, prepareBody, consumeTOTPCode());
+      const { signedTransaction, txIDMatched } = signTransaction(prepared.transaction, privateKey);
+      if (!txIDMatched) {
+        throw new Error("\u672C\u5730\u91CD\u7B97txID\u8207\u4F3A\u670D\u5668\u56DE\u50B3\u4E0D\u7B26\uFF0C\u5DF2\u4E2D\u6B62\uFF0C\u672A\u5EE3\u64AD");
+      }
+      if (!verifySignerAddress(signedTransaction, expectedAddress)) {
+        throw new Error("\u7C3D\u540D\u53CD\u63A8\u5730\u5740\u8207\u9810\u671F\u4E0D\u7B26\uFF0C\u5DF2\u4E2D\u6B62\uFF0C\u672A\u5EE3\u64AD");
+      }
+      const result = await postJSON(broadcastUrl, { item_id: prepared.item_id, transaction: signedTransaction }, consumeTOTPCode());
+      return { result, txId: prepared.tx_id };
+    }
+    async function waitOnChain(txId, kind) {
+      const maxTries = 40;
+      for (let i = 0; i < maxTries; i++) {
+        const r = await postJSON("/tron-proxy/consolidation/transaction-info", { tx_id: txId, kind }, consumeTOTPCode());
+        if (r.found && r.success) return;
+        if (r.found && !r.success) {
+          throw new Error("\u4EA4\u6613\u4E0A\u93C8\u5F8C\u57F7\u884C\u5931\u6557\uFF08" + kind + "\uFF0Ctxid " + txId + "\uFF09");
+        }
+        await sleep(3e3);
+      }
+      throw new Error("\u7B49\u5F85\u4EA4\u6613\u4E0A\u93C8\u903E\u6642\uFF08" + kind + "\uFF0Ctxid " + txId + "\uFF09");
+    }
+    async function runCombinedFlow() {
+      const totpCode = els.totpCodeInput.value.trim();
+      if (!totpCode) {
+        els.signStatus.textContent = "\u8ACB\u8F38\u5165TOTP\u9A57\u8B49\u78BC";
+        return;
+      }
+      if (masterKeys.size === 0 || !feeSourceKey) {
+        els.signStatus.textContent = "\u8ACB\u5148\u300C\u884D\u751F\u4E26\u6838\u5C0D\u300D\u5169\u628A\u91D1\u9470";
+        return;
+      }
+      pendingTOTPCode = totpCode;
+      els.signButton.disabled = true;
+      els.deriveButton.disabled = true;
+      const pending = combinedPendingItems();
+      if (pending.length === 0) {
+        els.signStatus.textContent = "\u6C92\u6709\u9700\u8981\u8655\u7406\u7684\u9805\u76EE\uFF08\u7686\u5DF2\u6B78\u96C6\u6216\u7121\u9918\u984D\uFF09";
+        els.deriveButton.disabled = false;
+        return;
+      }
+      const perOrderSun = trxToSun(amountInput.value);
+      try {
+        const topupTxByOrder = /* @__PURE__ */ new Map();
+        for (const item of pending) {
+          const needSun = perOrderSun - item.trx_balance;
+          if (needSun <= 0) {
+            itemStatusEl(item.order_id).textContent = "\u5DF2\u6709\u8DB3\u5920 TRX\uFF0C\u7565\u904E\u88DC\u6B3E";
+            continue;
+          }
+          itemStatusEl(item.order_id).textContent = "\u88DC TRX \u4E2D...";
+          const topup = await prepareSignBroadcast(
+            "/tron-proxy/fee-topup/prepare",
+            { batch_id: page.fee_topup_batch_id, order_id: item.order_id, amount: needSun },
+            "/tron-proxy/fee-topup/broadcast",
+            feeSourceKey,
+            page.fee_source_address
+          );
+          topupTxByOrder.set(item.order_id, topup.txId);
+          itemStatusEl(item.order_id).textContent = "\u88DC TRX \u5DF2\u9001\u51FA\uFF0C\u5F85\u4E0A\u93C8";
+        }
+        wipeFeeSourceKey();
+        for (const [orderId, txId] of topupTxByOrder) {
+          itemStatusEl(orderId).textContent = "\u7B49\u5F85\u88DC TRX \u4E0A\u93C8...";
+          await waitOnChain(txId, "trx");
+          itemStatusEl(orderId).textContent = "TRX \u5DF2\u5230\u5E33";
+        }
+        const first = pending[0];
+        itemStatusEl(first.order_id).textContent = "\u6B78\u96C6\u4E2D\uFF08\u9996\u7B46\uFF09...";
+        const firstRes = await prepareSignBroadcast(
+          "/tron-proxy/consolidation/prepare",
+          { batch_id: page.consolidation_batch_id, order_id: first.order_id },
+          "/tron-proxy/consolidation/broadcast",
+          masterKeys.get(first.order_id),
+          first.address
+        );
+        itemStatusEl(first.order_id).textContent = "\u9996\u7B46\u5DF2\u9001\u51FA\uFF0C\u5F85\u4E0A\u93C8\u78BA\u8A8D...";
+        await waitOnChain(firstRes.txId, "usdt");
+        itemStatusEl(first.order_id).textContent = statusLabel(firstRes.result.status, firstRes.result.error_detail);
+        for (let i = 1; i < pending.length; i++) {
+          const item = pending[i];
+          itemStatusEl(item.order_id).textContent = "\u6B78\u96C6\u4E2D...";
+          const res = await prepareSignBroadcast(
+            "/tron-proxy/consolidation/prepare",
+            { batch_id: page.consolidation_batch_id, order_id: item.order_id },
+            "/tron-proxy/consolidation/broadcast",
+            masterKeys.get(item.order_id),
+            item.address
+          );
+          itemStatusEl(item.order_id).textContent = statusLabel(res.result.status, res.result.error_detail);
+        }
+        els.signStatus.textContent = "\u6574\u6279\u8655\u7406\u5B8C\u6210\uFF0C\u8ACB\u56DE\u5F85\u6B78\u96C6\u5217\u8868\u78BA\u8A8D\u6BCF\u7B46\u6700\u7D42\u7D50\u679C";
+      } catch (err) {
+        els.signStatus.textContent = "\u6D41\u7A0B\u4E2D\u6B62\uFF1A" + err.message + "\u3002\u5DF2\u5B8C\u6210\u7684\u9805\u76EE\u4E0D\u53D7\u5F71\u97FF\uFF1B\u8ACB\u56DE\u5F85\u6B78\u96C6\u5217\u8868\u67E5\u8B49\u5F8C\u91CD\u65B0\u767C\u8D77\uFF0C\u7CFB\u7D71\u6703\u4F9D\u93C8\u4E0A\u73FE\u6CC1\u53EA\u8655\u7406\u5C1A\u672A\u5B8C\u6210\u7684\u90E8\u5206\u3002";
+      } finally {
+        wipeFeeSourceKey();
+        els.deriveButton.disabled = false;
+      }
+    }
+    function initCombinedMode() {
+      els.combinedInputs.hidden = false;
+      els.mnemonicField.hidden = true;
+      els.privkeyField.hidden = true;
+      if (els.modeToggle) els.modeToggle.hidden = true;
+      renderItemsCombined();
+      if (combinedPendingItems().length === 0) {
+        els.signStatus.textContent = "\u6B64\u6279\u6B21\u6C92\u6709\u9700\u8981\u8655\u7406\u7684\u9805\u76EE\uFF08\u7686\u5DF2\u6B78\u96C6\u6216\u7121\u9918\u984D\uFF09\uFF0C\u8ACB\u56DE\u5F85\u6B78\u96C6\u5217\u8868\u78BA\u8A8D";
+        els.deriveButton.disabled = true;
+        els.signButton.disabled = true;
+        return;
+      }
+      wireCombinedFeeMode();
+      els.deriveButton.addEventListener("click", () => {
+        handleDeriveCombined();
+      });
+      els.signButton.addEventListener("click", () => {
+        runCombinedFlow();
+      });
+    }
+    if (page.type === "combined") {
+      initCombinedMode();
+      return;
     }
     renderItems();
     if (page.items.length === 0) {

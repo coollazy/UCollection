@@ -28,6 +28,17 @@
     <label>私鑰（64碼十六進位） <input type="password" id="privkey-hex" autocomplete="off"></label>
   </p>
 
+  <div id="combined-inputs" hidden>
+    <p><label>代收主錢包助記詞（用於簽名 USDT 歸集） <input type="password" id="combined-master-mnemonic" autocomplete="off"></label></p>
+    <p id="combined-fee-mode">
+      TRX 手續費來源錢包（用於簽名補 TRX）：
+      <label><input type="radio" name="combined-fee-input-mode" value="mnemonic" checked> 助記詞</label>
+      <label><input type="radio" name="combined-fee-input-mode" value="privkey"> 私鑰（十六進位）</label>
+    </p>
+    <p id="combined-fee-mnemonic-field"><label>TRX 來源助記詞 <input type="password" id="combined-fee-mnemonic" autocomplete="off"></label></p>
+    <p id="combined-fee-privkey-field" hidden><label>TRX 來源私鑰（64碼十六進位） <input type="password" id="combined-fee-privkey" autocomplete="off"></label></p>
+  </div>
+
   <div id="storage-controls"></div>
 
   <p><label>TOTP驗證碼（整批只需輸入一次） <input type="text" id="totp-code-input" inputmode="numeric" autocomplete="off"></label></p>
