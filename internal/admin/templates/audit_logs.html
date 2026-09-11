@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>稽核日誌 - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>稽核日誌</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>稽核日誌</h1>
 
 <form method="get">
   <p>
@@ -40,5 +42,7 @@
   {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
 </p>
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>

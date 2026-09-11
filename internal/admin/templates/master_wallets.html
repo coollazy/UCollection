@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>代收主錢包 - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>代收主錢包</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>代收主錢包</h1>
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 
@@ -33,5 +35,7 @@
   {{end}}
 </table>
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>

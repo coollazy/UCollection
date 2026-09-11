@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>訂單明細 #{{.Order.ID}} - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>訂單明細 #{{.Order.ID}}</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>訂單明細 #{{.Order.ID}}</h1>
 {{if .Flash}}<p style="color:green">操作成功（{{.Flash}}）</p>{{end}}
 {{if .FlashError}}<p style="color:red">操作失敗（{{.FlashError}}）</p>{{end}}
 {{if .TOTPReverifiedNotice}}<p style="color:blue">{{.TOTPReverifiedNotice}}</p>{{end}}
@@ -92,5 +94,7 @@
 </form>
 {{end}}
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>

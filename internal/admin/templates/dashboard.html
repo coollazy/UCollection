@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>儀表板 - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>儀表板</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>儀表板</h1>
 
 <h2>統計</h2>
 <table border="1" cellpadding="4">
@@ -32,5 +34,7 @@
   待設定（尚未設定 webhook_url/secret）：{{.WebhookAwaitingConfig}} 筆
 </p>
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>

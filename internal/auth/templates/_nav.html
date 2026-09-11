@@ -1,18 +1,53 @@
-{{define "nav"}}<nav>
-  <a href="/admin/dashboard">儀表板</a> ｜
-  <a href="/admin/orders">訂單列表</a> ｜
-  <a href="/admin/master-wallets">代收主錢包</a> ｜
-  <a href="/admin/api-keys">API Key管理</a> ｜
-  <a href="/admin/webhook-config">Webhook設定</a> ｜
-  <a href="/admin/params">參數設定</a> ｜
-  <a href="/admin/consolidation">手動歸集</a> ｜
-  <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜
-  <a href="/admin/notifications">通知歷史</a> ｜
-  <a href="/admin/audit-logs">稽核日誌</a> ｜
-  <a href="/admin/export/orders?format=csv">匯出CSV</a> ｜
-  <a href="/admin/export/orders?format=xlsx">匯出Excel</a> ｜
-  <a href="/admin/password">修改密碼</a> ｜
-  <form method="post" action="/admin/logout" style="display:inline"><button type="submit">登出</button></form>
-</nav>
-<hr>
+{{define "nav"}}<aside class="sidebar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M12 12v5a4 4 0 0 0 8 0v-5" fill="none" stroke="#2DD4A7" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <span class="brand-name">UCollection</span>
+  </div>
+  <nav class="nav">
+    <a href="/admin/dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>儀表板</a>
+    <a href="/admin/orders"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>訂單列表</a>
+    <a href="/admin/consolidation"><svg viewBox="0 0 24 24"><polyline points="4 7 12 3 20 7"/><polyline points="4 12 12 16 20 12"/><polyline points="4 17 12 21 20 17"/></svg>手動歸集</a>
+    <a href="/admin/notifications"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知歷史</a>
+    <a href="/admin/audit-logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>稽核日誌</a>
+    <details>
+      <summary>設定</summary>
+      <a href="/admin/master-wallets"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="16" cy="12" r="2"/></svg>代收主錢包</a>
+      <a href="/admin/api-keys"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><line x1="11" y1="12" x2="20" y2="3"/><line x1="17" y1="6" x2="20" y2="9"/></svg>API Key管理</a>
+      <a href="/admin/webhook-config"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Webhook設定</a>
+      <a href="/admin/params"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數設定</a>
+      <a href="/admin/consolidation/address-book"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>歸集地址簿</a>
+      <a href="/admin/consolidation/fee-source-book"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>手續費來源地址簿</a>
+      <a href="/admin/password"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>修改密碼</a>
+    </details>
+  </nav>
+  <div class="sidebar-foot">
+    <form method="post" action="/admin/logout"><button type="submit" class="btn btn--sm" style="width:100%">登出</button></form>
+  </div>
+</aside>
+<script src="/static/js/nav-active.js"></script>
+{{end}}
+{{define "navMinimal"}}<aside class="sidebar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M12 12v5a4 4 0 0 0 8 0v-5" fill="none" stroke="#2DD4A7" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <span class="brand-name">UCollection</span>
+  </div>
+  <nav class="nav">
+    <a href="/admin/dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>儀表板</a>
+    <a href="/admin/orders"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>訂單列表</a>
+    <a href="/admin/consolidation"><svg viewBox="0 0 24 24"><polyline points="4 7 12 3 20 7"/><polyline points="4 12 12 16 20 12"/><polyline points="4 17 12 21 20 17"/></svg>手動歸集</a>
+    <a href="/admin/notifications"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知歷史</a>
+    <a href="/admin/audit-logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>稽核日誌</a>
+    <details>
+      <summary>設定</summary>
+      <a href="/admin/master-wallets"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="16" cy="12" r="2"/></svg>代收主錢包</a>
+      <a href="/admin/api-keys"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><line x1="11" y1="12" x2="20" y2="3"/><line x1="17" y1="6" x2="20" y2="9"/></svg>API Key管理</a>
+      <a href="/admin/webhook-config"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Webhook設定</a>
+      <a href="/admin/params"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數設定</a>
+      <a href="/admin/consolidation/address-book"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>歸集地址簿</a>
+      <a href="/admin/consolidation/fee-source-book"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>手續費來源地址簿</a>
+      <a href="/admin/password"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>修改密碼</a>
+    </details>
+  </nav>
+</aside>
+<script src="/static/js/nav-active.js"></script>
 {{end}}

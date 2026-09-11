@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-<h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
 <p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜ <a href="/admin/consolidation/fee-source-book">手續費來源地址簿</a></p>
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 {{if not .Entries}}
@@ -74,5 +76,7 @@
 {{end}}
 <script src="/static/js/address-book-select.js"></script>
 <script src="/static/js/fee-estimate.js"></script>
+</main>
+</div>
 </body>
 </html>

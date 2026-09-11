@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-<h1>手動歸集：選擇代收主錢包</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>手動歸集：選擇代收主錢包</h1>
 {{if not .Wallets}}
   <p>尚未設定代收主錢包。</p>
 {{else}}
@@ -15,5 +17,7 @@
   {{end}}
   </ul>
 {{end}}
+</main>
+</div>
 </body>
 </html>

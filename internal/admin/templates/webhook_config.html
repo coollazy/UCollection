@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>Webhook 端點設定 - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>Webhook 端點設定</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>Webhook 端點設定</h1>
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
 {{if .FlashSuccess}}<p style="color:green">{{.FlashSuccess}}</p>{{end}}
 {{if .GeneratedSecret}}
@@ -43,5 +45,7 @@
   {{end}}
 </div>
 {{end}}
+</main>
+</div>
 </body>
 </html>

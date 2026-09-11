@@ -6,8 +6,10 @@
 <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-<h1>手動歸集簽名</h1>
+<div class="layout">
 {{template "navMinimal" .}}
+<main class="main">
+<h1>手動歸集簽名</h1>
 
 <p><strong>助記詞只在此瀏覽器分頁本機衍生私鑰與簽名，永遠不會送到伺服器。</strong>送出前系統會自動核對衍生出的xpub與本批次記錄的代收主錢包xpub是否逐字相符，以及簽名反推出的地址是否與預期地址相符，兩者皆須通過才會廣播。</p>
 
@@ -71,5 +73,7 @@
      wrong, found via real-browser network log during Shasta testing. -->
 <script src="/static/js/polyfill.bundle.js"></script>
 <script src="/static/js/bundle.js"></script>
+</main>
+</div>
 </body>
 </html>

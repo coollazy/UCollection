@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-<h1>手續費來源地址簿</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>手續費來源地址簿</h1>
 {{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 
@@ -42,5 +44,7 @@
 
 <script src="/static/js/admin.js"></script>
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>

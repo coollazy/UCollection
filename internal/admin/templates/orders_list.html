@@ -2,8 +2,10 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><title>訂單列表 - UCollection 後台</title><link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>訂單列表</h1>
+<div class="layout">
 {{template "nav" .}}
+<main class="main">
+<h1>訂單列表</h1>
 {{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
 
 <form method="get">
@@ -70,5 +72,7 @@
   <p><button type="submit">建立訂單</button></p>
 </form>
 <script src="/static/js/localtime.js"></script>
+</main>
+</div>
 </body>
 </html>
