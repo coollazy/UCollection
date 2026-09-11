@@ -126,11 +126,12 @@ func broadcastConsolidationHandler(deps Deps) http.HandlerFunc {
 	}
 }
 
-// broadcastFeeTopupHandler is broadcastConsolidationHandler's counterpart
-// for TRX top-ups — same decideBroadcastOutcome logic, but success never
-// touches orders.consolidation_status (topping up TRX is just a
-// prerequisite step, not the consolidation itself) and there's no address
-// book to auto-save to.
+// broadcastFeeTopupHandler is broadcastConsolidationHandler's counterpart for
+// TRX top-ups — same decideBroadcastOutcome logic, but success never touches
+// orders.consolidation_status (topping up TRX is just a prerequisite step, not
+// the consolidation itself). On success it auto-saves a manually-typed new
+// source address to the fee-source book (需求書5.9 v0.39, best-effort, mirrors
+// AutoSaveIfNew).
 func broadcastFeeTopupHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req broadcastRequest
@@ -173,6 +174,13 @@ func broadcastFeeTopupHandler(deps Deps) http.HandlerFunc {
 		`, item.ID, status, nullIfEmpty(errorDetail)); err != nil {
 			writeError(w, errAPIInternal)
 			return
+		}
+
+		if status == "success" {
+			// Best-effort：比照 broadcastConsolidationHandler 的 AutoSaveIfNew，把
+			// 手動輸入的新來源地址存入手續費來源地址簿；失敗只忽略，絕不影響已成功
+			// 的鏈上補款（需求書5.9「手續費來源地址簿」自動存規則）。
+			_ = AutoSaveFeeSourceIfNew(ctx, deps, item.FeeSourceAddress)
 		}
 
 		targetType := "fee_topup_item"

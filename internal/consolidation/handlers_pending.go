@@ -14,6 +14,7 @@ type pendingListPageData struct {
 	MasterWalletID int64
 	Entries        []PendingEntry
 	AddressBook    []AddressBookEntry
+	FeeSourceBook  []AddressBookEntry
 	Notice         string
 }
 
@@ -76,13 +77,19 @@ func pendingListPageHandler(deps Deps) http.HandlerFunc {
 		}
 
 		// 地址簿供「目的地地址」/「手續費來源地址」欄位做快速選取（第9/10項）。
-		// 純便利功能，查詢失敗只記錄、退化成純文字輸入框，不擋整頁渲染。
+		// 兩份獨立清單，純便利功能，查詢失敗只記錄、退化成純文字輸入框，不擋整頁渲染。
 		addressBook, err := ListAddressBook(ctx, deps)
 		if err != nil {
 			log.Printf("consolidation: list address book on page load: %v", err)
 			addressBook = nil
 		}
 
-		render(w, http.StatusOK, "consolidation_pending.html", pendingListPageData{MasterWalletID: masterWalletID, Entries: entries, AddressBook: addressBook, Notice: totpReverifiedNotice(r)})
+		feeSourceBook, err := ListFeeSourceBook(ctx, deps)
+		if err != nil {
+			log.Printf("consolidation: list fee source book on page load: %v", err)
+			feeSourceBook = nil
+		}
+
+		render(w, http.StatusOK, "consolidation_pending.html", pendingListPageData{MasterWalletID: masterWalletID, Entries: entries, AddressBook: addressBook, FeeSourceBook: feeSourceBook, Notice: totpReverifiedNotice(r)})
 	}
 }

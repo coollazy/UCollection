@@ -461,6 +461,16 @@ func TestFeeTopupPrepareAndBroadcast_Success(t *testing.T) {
 	if got.ConsolidationStatus != order.ConsolidationNotConsolidated {
 		t.Fatalf("ConsolidationStatus = %q, want unaffected by fee top-up", got.ConsolidationStatus)
 	}
+
+	// 廣播成功後，手動指定的 TRX 來源地址應自動存入手續費來源地址簿
+	// （需求書5.9 v0.39，best-effort，比照歸集地址簿的 AutoSaveIfNew）。
+	fsb, err := ListFeeSourceBook(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("ListFeeSourceBook() error = %v", err)
+	}
+	if len(fsb) != 1 || fsb[0].Address != testSourceAddress {
+		t.Fatalf("fee source book = %+v, want auto-saved %s", fsb, testSourceAddress)
+	}
 }
 
 func TestConsolidationRoutes_RequireSession(t *testing.T) {

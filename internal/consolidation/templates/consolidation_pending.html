@@ -4,7 +4,7 @@
 <body>
 <h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
 {{template "nav" .}}
-<p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a></p>
+<p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜ <a href="/admin/consolidation/fee-source-book">手續費來源地址簿</a></p>
 {{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
 {{if not .Entries}}
   <p>目前沒有餘額大於0且尚未歸集的地址。</p>
@@ -53,6 +53,12 @@
   </select></label></p>
   <p>
     <label>來源地址（商戶自行指定，非代收主錢包HD樹衍生地址）
+    {{if .FeeSourceBook}}
+      <select data-target-input="fee-source-address" hidden>
+        {{range .FeeSourceBook}}<option value="{{.Address}}">{{.Label}}（{{.Address}}）</option>{{end}}
+        <option value="__manual__">-- 手動輸入新地址 --</option>
+      </select>
+    {{end}}
       <input type="text" name="fee_source_address" id="fee-source-address">
     </label>
     <button type="button" id="check-trx-balance-btn">查餘額</button>

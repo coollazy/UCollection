@@ -68,6 +68,12 @@ func RegisterRoutes(mux *http.ServeMux, deps Deps, authDeps auth.Deps) {
 	mux.Handle("POST /admin/consolidation/address-book", requireTOTPCode(addressBookSubmitHandler(deps), func(*http.Request) string { return "/admin/consolidation/address-book" }))
 	mux.Handle("DELETE /admin/consolidation/address-book/{id}", requireTOTPCode(addressBookDeleteHandler(deps), func(*http.Request) string { return "/admin/consolidation/address-book" }))
 
+	// 手續費來源地址簿（需求書5.9 v0.39）：與歸集地址簿為兩份獨立清單，權限分級
+	// 完全比照——唯讀查詢 RequireSession，新增/改名/刪除疊加 RequireTOTPCode。
+	mux.Handle("GET /admin/consolidation/fee-source-book", requireSession(feeSourceBookPageHandler(deps)))
+	mux.Handle("POST /admin/consolidation/fee-source-book", requireTOTPCode(feeSourceBookSubmitHandler(deps), func(*http.Request) string { return "/admin/consolidation/fee-source-book" }))
+	mux.Handle("DELETE /admin/consolidation/fee-source-book/{id}", requireTOTPCode(feeSourceBookDeleteHandler(deps), func(*http.Request) string { return "/admin/consolidation/fee-source-book" }))
+
 	// /admin/consolidation/fee-estimate、/admin/consolidation/trx-balance —
 	// 手動歸集流程重構Phase2（見docs/進度.md）新增的唯讀精算端點：對TronGrid做
 	// triggerconstantcontract/getaccount模擬查詢，不建立任何consolidation_items/

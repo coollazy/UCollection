@@ -119,9 +119,9 @@ func TestPendingListPage_RequireSession(t *testing.T) {
 	}
 }
 
-// TestPendingListPage_RendersAddressBookSelector 覆蓋第9項：待歸集頁的目的地
-// 地址欄位應串接歸集地址簿——渲染出下拉選單（含地址簿項目與「手動輸入新地址」
-// 選項）及切換用的 JS。（手續費來源地址的地址簿為第10項，需先改需求書，本次不做。）
+// TestPendingListPage_RendersAddressBookSelector 覆蓋第9/10項：待歸集頁的目的地
+// 地址欄位串接歸集地址簿、手續費來源地址欄位串接手續費來源地址簿——兩者各自渲染出
+// 下拉選單（含地址簿項目與「手動輸入新地址」選項）及共用的切換 JS。
 func TestPendingListPage_RendersAddressBookSelector(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
@@ -130,6 +130,9 @@ func TestPendingListPage_RendersAddressBookSelector(t *testing.T) {
 
 	if _, err := CreateAddressBookEntry(context.Background(), Deps{Pool: pool}, testDestinationAddress, "測試冷錢包"); err != nil {
 		t.Fatalf("CreateAddressBookEntry() error = %v", err)
+	}
+	if _, err := CreateFeeSourceBookEntry(context.Background(), Deps{Pool: pool}, testSourceAddress, "測試手續費錢包"); err != nil {
+		t.Fatalf("CreateFeeSourceBookEntry() error = %v", err)
 	}
 
 	mock := newMockTronGrid()
@@ -150,19 +153,17 @@ func TestPendingListPage_RendersAddressBookSelector(t *testing.T) {
 		t.Fatalf("expected pending entry to be listed: %s", body)
 	}
 	for _, want := range []string{
-		`data-target-input="dest-addr"`,     // 目的地地址下拉
-		testDestinationAddress,              // 地址簿項目出現在 option value
-		"測試冷錢包",                             // 地址簿備註 label
-		"__manual__",                        // 保留手動輸入新地址的選項
-		"/static/js/address-book-select.js", // 顯示/隱藏切換的 JS
+		`data-target-input="dest-addr"`,          // 目的地地址下拉（第9項）
+		"測試冷錢包",                                  // 目的地地址簿備註 label
+		`data-target-input="fee-source-address"`, // 手續費來源地址下拉（第10項）
+		testSourceAddress,                        // 來源地址簿項目出現在 option value
+		"測試手續費錢包",                                // 來源地址簿備註 label
+		testDestinationAddress,                   // 目的地地址簿項目出現在 option value
+		"__manual__",                             // 兩個下拉都保留手動輸入新地址的選項
+		"/static/js/address-book-select.js",      // 顯示/隱藏切換的 JS（兩個下拉共用）
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q", want)
 		}
-	}
-
-	// 手續費來源地址欄位這次維持純文字框（第10項待改需求書後另做），不應出現地址簿下拉。
-	if strings.Contains(body, `data-target-input="fee-src-addr"`) {
-		t.Errorf("fee source address should stay a plain text field until 第10項 (needs requirements change first)")
 	}
 }

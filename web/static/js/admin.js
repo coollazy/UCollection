@@ -28,3 +28,29 @@ function deleteAddressBookEntry(id) {
       alert('刪除失敗');
     });
 }
+
+// deleteFeeSourceBookEntry is deleteAddressBookEntry's counterpart for the
+// 手續費來源地址簿 (需求書5.9 v0.39) — same DELETE-via-fetch mechanism, just a
+// different endpoint. The two address books are two independent lists.
+function deleteFeeSourceBookEntry(id) {
+  const totpCode = prompt('請輸入TOTP驗證碼以確認刪除：');
+  if (!totpCode) return;
+  fetch(`/admin/consolidation/fee-source-book/${id}`, {
+    method: 'DELETE',
+    headers: { 'X-Totp-Code': totpCode },
+  })
+    .then((r) => {
+      if (r.redirected) {
+        alert('TOTP驗證碼有誤或已過期，請重新操作一次');
+        return;
+      }
+      if (r.ok) {
+        location.reload();
+      } else {
+        alert('刪除失敗');
+      }
+    })
+    .catch(() => {
+      alert('刪除失敗');
+    });
+}

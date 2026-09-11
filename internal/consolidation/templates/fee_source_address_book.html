@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><title>手續費來源地址簿 - UCollection 後台</title></head>
+<body>
+<h1>手續費來源地址簿</h1>
+{{template "nav" .}}
+{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
+
+<p>此清單為 TRX 手續費來源地址，與「歸集地址簿」（歸集目的地）為兩份獨立清單。</p>
+
+<table border="1" cellpadding="4">
+  <tr><th>地址</th><th>名稱</th><th>建立時間</th><th></th></tr>
+  {{range .Entries}}
+  <tr>
+    <td>{{.Address}}</td>
+    <td>
+      <form method="post" action="/admin/consolidation/fee-source-book" style="display:inline">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <input type="hidden" name="address" value="{{.Address}}">
+        <input type="text" name="label" value="{{.Label}}">
+        <input type="text" name="totp_code" placeholder="TOTP驗證碼" inputmode="numeric" autocomplete="off" required>
+        <button type="submit">改名</button>
+      </form>
+    </td>
+    <td>{{ts .CreatedAt}}</td>
+    <td><button type="button" onclick="deleteFeeSourceBookEntry({{.ID}})">刪除</button></td>
+  </tr>
+  {{end}}
+</table>
+
+<h2>新增地址</h2>
+<form method="post" action="/admin/consolidation/fee-source-book">
+  <input type="hidden" name="id" value="">
+  <p><label>地址 <input type="text" name="address" required></label></p>
+  <p><label>名稱 <input type="text" name="label" required></label></p>
+  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
+  <p><button type="submit">新增</button></p>
+</form>
+
+<script src="/static/js/admin.js"></script>
+<script src="/static/js/localtime.js"></script>
+</body>
+</html>

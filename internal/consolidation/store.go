@@ -74,13 +74,19 @@ type feeTopupItem struct {
 	OrderID         int64
 	TxHash          string
 	BroadcastStatus string
+	// FeeSourceAddress 來自所屬 fee_topup_batches（透過 loadFeeTopupItem 的 JOIN
+	// 帶出），供廣播成功後自動存入手續費來源地址簿（需求書5.9 v0.39）。
+	FeeSourceAddress string
 }
 
 func loadFeeTopupItem(ctx context.Context, pool *store.Pool, id int64) (feeTopupItem, error) {
 	var it feeTopupItem
 	err := pool.QueryRow(ctx, `
-		SELECT id, order_id, tx_hash, broadcast_status FROM fee_topup_items WHERE id = $1
-	`, id).Scan(&it.ID, &it.OrderID, &it.TxHash, &it.BroadcastStatus)
+		SELECT i.id, i.order_id, i.tx_hash, i.broadcast_status, b.fee_source_address
+		FROM fee_topup_items i
+		JOIN fee_topup_batches b ON b.id = i.batch_id
+		WHERE i.id = $1
+	`, id).Scan(&it.ID, &it.OrderID, &it.TxHash, &it.BroadcastStatus, &it.FeeSourceAddress)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return feeTopupItem{}, errRowNotFound
 	}
