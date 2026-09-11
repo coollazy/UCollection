@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>訂單列表 - UCollection 後台（mockup）</title>
+<style>
+:root{
+  --bg:#0B0F14; --bg-elev:#0E141B; --surface:#131A22; --surface-2:#1A222C;
+  --border:#232D38; --border-strong:#2E3A47;
+  --text:#E6EDF3; --text-2:#9BA9B7; --text-muted:#64748B;
+  --accent:#2DD4A7; --accent-hover:#4EE7BE; --accent-tint:rgba(45,212,167,.12); --on-accent:#04110D;
+  --success:#34D399; --success-tint:rgba(52,211,153,.14);
+  --warning:#FBBF24; --warning-tint:rgba(251,191,36,.14);
+  --danger:#F87171;  --danger-tint:rgba(248,113,113,.14);
+  --info:#60A5FA;    --info-tint:rgba(96,165,250,.14);
+  --cyan:#22D3EE;    --cyan-tint:rgba(34,211,238,.14);
+  --neutral:#94A3B8; --neutral-tint:rgba(148,163,184,.14);
+  --sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:20px;--sp6:24px;--sp8:32px;--sp10:40px;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;--r-pill:999px;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -16px rgba(0,0,0,.7);
+  --font-sans:"Inter","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sidebar-w:240px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-hover)}
+h1{font-size:22px;font-weight:600;margin:0}
+h2{font-size:15px;font-weight:600;margin:var(--sp6) 0 var(--sp4)}
+
+/* layout */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex:0 0 var(--sidebar-w);background:var(--bg-elev);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:var(--sp5) var(--sp3)}
+.main{flex:1;min-width:0;padding:var(--sp8)}
+.main-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp4);margin-bottom:var(--sp6)}
+.main-head .sub{color:var(--text-2);font-size:13px;margin-top:4px}
+.brand{display:flex;align-items:center;gap:var(--sp3);padding:0 var(--sp2) var(--sp5)}
+.brand svg{width:28px;height:28px;flex:0 0 28px}
+.brand-name{font-weight:700;font-size:16px;letter-spacing:.5px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:var(--sp3);padding:9px var(--sp3);border-radius:var(--r-md);color:var(--text-2);font-weight:500}
+.nav a svg{width:18px;height:18px;flex:0 0 18px;stroke:currentColor;fill:none;stroke-width:1.8}
+.nav a:hover{background:var(--surface);color:var(--text)}
+.nav a.active{background:var(--accent-tint);color:var(--accent)}
+.nav-group-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);padding:var(--sp5) var(--sp3) var(--sp2)}
+.sidebar-foot{margin-top:auto;padding-top:var(--sp4);border-top:1px solid var(--border)}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent-tint);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.userbox{display:flex;align-items:center;gap:var(--sp2);color:var(--text-2);font-size:13px}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp5);box-shadow:var(--shadow)}
+
+/* alert */
+.alert{display:flex;gap:var(--sp3);padding:12px var(--sp4);border-radius:var(--r-md);border:1px solid transparent;margin-bottom:var(--sp4);font-size:13px}
+.alert--error{background:var(--danger-tint);border-color:rgba(248,113,113,.35);color:#FCA5A5}
+
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:var(--sp4);align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px}
+.field .lbl{font-size:12px;color:var(--text-2);font-weight:500}
+input[type=text],input[type=number],input[type=date],select{
+  background:var(--bg-elev);border:1px solid var(--border-strong);border-radius:var(--r-md);
+  color:var(--text);padding:9px 12px;font-size:14px;font-family:inherit;min-width:180px}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+input::placeholder{color:var(--text-muted)}
+.chips{display:flex;flex-wrap:wrap;gap:var(--sp2)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border-strong);border-radius:var(--r-pill);color:var(--text-2);cursor:pointer;font-size:12px;font-weight:600;user-select:none}
+.chip input{display:none}
+.chip.on{background:var(--accent-tint);border-color:var(--accent);color:var(--accent)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:var(--sp2);padding:8px 14px;border-radius:var(--r-md);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn--primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn--primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:var(--on-accent)}
+.btn--sm{padding:5px 10px;font-size:12px}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+/* table */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--sp4);margin:var(--sp5) 0 var(--sp3)}
+.muted{color:var(--text-2);font-size:13px}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface)}
+table.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th{text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);font-weight:600;padding:12px var(--sp4);background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap}
+.table td{padding:12px var(--sp4);border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
+.table tbody tr:last-child td{border-bottom:none}
+.table tbody tr:hover{background:var(--surface-2)}
+.mono{font-family:var(--font-mono)}
+.addr{font-family:var(--font-mono);color:var(--text-2)}
+.num{font-family:var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+time{color:var(--text-2)}
+
+/* pill */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600;line-height:1.4;border:1px solid transparent;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--completed{color:var(--success);background:var(--success-tint);border-color:rgba(52,211,153,.3)}
+.pill--confirming{color:var(--warning);background:var(--warning-tint);border-color:rgba(251,191,36,.3)}
+.pill--pending{color:var(--info);background:var(--info-tint);border-color:rgba(96,165,250,.3)}
+.pill--overpaid{color:var(--cyan);background:var(--cyan-tint);border-color:rgba(34,211,238,.3)}
+.pill--expired{color:var(--neutral);background:var(--neutral-tint);border-color:rgba(148,163,184,.3)}
+.pill--stalled{color:var(--danger);background:var(--danger-tint);border-color:rgba(248,113,113,.3)}
+
+.pager{display:flex;gap:var(--sp2);align-items:center;margin-top:var(--sp4)}
+.note{background:#0d1622;border:1px dashed var(--border-strong);border-radius:var(--r-md);padding:var(--sp3) var(--sp4);color:var(--text-muted);font-size:12px;margin-top:var(--sp6)}
+.create-form .field{margin-bottom:var(--sp4)}
+
+@media(max-width:900px){
+  .sidebar{position:static;width:100%;height:auto;flex-direction:row;flex-wrap:wrap;gap:var(--sp2)}
+  .brand{padding:var(--sp2)} .nav{flex-direction:row;flex-wrap:wrap}
+  .nav-group-label,.sidebar-foot{display:none} .main{padding:var(--sp5)}
+}
+</style>
+</head>
+<body>
+<!-- ============ 設計 mockup：真實 orders_list 內容套新樣式；chip 的選中態在正式版用 :has(input:checked)，此處用 .on class 靜態示意 ============ -->
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M12 12v5a4 4 0 0 0 8 0v-5" fill="none" stroke="#2DD4A7" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span class="brand-name">UCollection</span>
+    </div>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>儀表板</a>
+      <a href="#" class="active"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>訂單列表</a>
+      <a href="#"><svg viewBox="0 0 24 24"><polyline points="4 7 12 3 20 7"/><polyline points="4 12 12 16 20 12"/><polyline points="4 17 12 21 20 17"/></svg>手動歸集</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知歷史</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>稽核日誌</a>
+      <div class="nav-group-label">設定</div>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="16" cy="12" r="2"/></svg>代收主錢包</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><line x1="11" y1="12" x2="20" y2="3"/><line x1="17" y1="6" x2="20" y2="9"/></svg>API Key 管理</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Webhook 設定</a>
+      <a href="#"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數設定</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>歸集地址簿</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>手續費來源地址簿</a>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>修改密碼</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="userbox"><span class="avatar">M</span><span>merchant01</span></div>
+      <div style="margin-top:var(--sp3)"><a href="#" style="color:var(--danger);font-size:13px">登出</a></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-head">
+      <div><h1>訂單列表</h1><div class="sub">篩選、查詢、匯出與手動建單</div></div>
+      <div class="userbox"><span class="avatar">M</span><span>merchant01</span></div>
+    </div>
+
+    <div class="alert alert--error">查詢條件有誤：建立時間「從」不可晚於「到」。</div>
+
+    <!-- 篩選 -->
+    <form class="card">
+      <div class="field" style="margin-bottom:var(--sp4)">
+        <span class="lbl">狀態</span>
+        <div class="chips">
+          <label class="chip on">PENDING</label>
+          <label class="chip on">CONFIRMING</label>
+          <label class="chip">COMPLETED</label>
+          <label class="chip">OVERPAID</label>
+          <label class="chip">EXPIRED</label>
+          <label class="chip">CONFIRMATION_STALLED</label>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="field"><span class="lbl">merchant_order_no（模糊）</span><input type="text" placeholder="ORD..."></div>
+        <div class="field"><span class="lbl">地址（精確）</span><input type="text" placeholder="Txxxxxxxx"></div>
+        <div class="field"><span class="lbl">代收主錢包 ID</span><input type="number" placeholder="1" style="min-width:120px"></div>
+        <div class="field"><span class="lbl">建立時間從</span><input type="date"></div>
+        <div class="field"><span class="lbl">到</span><input type="date"></div>
+        <button class="btn btn--primary" type="button">查詢</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <span class="muted">共 <strong style="color:var(--text)">248</strong> 筆，第 <strong style="color:var(--text)">1</strong> / 13 頁</span>
+      <div style="display:flex;gap:var(--sp2)">
+        <button class="btn btn--sm" type="button"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>匯出 CSV</button>
+        <button class="btn btn--sm" type="button"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>匯出 Excel</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th class="num">目標金額 (USDT)</th><th>建立時間</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono"><a href="#">1042</a></td><td class="mono">ORD20260912008</td><td class="addr">TXk9…4gAz2q</td><td><span class="pill pill--pending">PENDING</span></td><td class="num">100.00</td><td><time datetime="2026-09-12T06:11:00Z">2026-09-12 14:11</time></td></tr>
+          <tr><td class="mono"><a href="#">1041</a></td><td class="mono">ORD20260912007</td><td class="addr">TQ2m…7hVpXe</td><td><span class="pill pill--confirming">CONFIRMING</span></td><td class="num">320.00</td><td><time datetime="2026-09-12T05:58:00Z">2026-09-12 13:58</time></td></tr>
+          <tr><td class="mono"><a href="#">1040</a></td><td class="mono">ORD20260912006</td><td class="addr">TLr8…2kQ9wN</td><td><span class="pill pill--completed">COMPLETED</span></td><td class="num">1,500.00</td><td><time datetime="2026-09-12T05:40:00Z">2026-09-12 13:40</time></td></tr>
+          <tr><td class="mono"><a href="#">1039</a></td><td class="mono">ORD20260912005</td><td class="addr">TBn3…9pLmZx</td><td><span class="pill pill--overpaid">OVERPAID</span></td><td class="num">88.50</td><td><time datetime="2026-09-12T05:22:00Z">2026-09-12 13:22</time></td></tr>
+          <tr><td class="mono"><a href="#">1038</a></td><td class="mono">ORD20260912004</td><td class="addr">TFd6…1cWtYr</td><td><span class="pill pill--stalled">CONFIRMATION_STALLED</span></td><td class="num">640.00</td><td><time datetime="2026-09-12T04:03:00Z">2026-09-12 12:03</time></td></tr>
+          <tr><td class="mono"><a href="#">1037</a></td><td class="mono">ORD20260912003</td><td class="addr">TZa1…6yHnQp</td><td><span class="pill pill--expired">EXPIRED</span></td><td class="num">50.00</td><td><time datetime="2026-09-11T22:19:00Z">2026-09-12 06:19</time></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <button class="btn btn--sm" type="button">上一頁</button>
+      <button class="btn btn--sm" type="button">下一頁</button>
+    </div>
+
+    <h2>手動建單</h2>
+    <form class="card create-form" style="max-width:560px">
+      <div class="field"><span class="lbl">訂單編號（自動產生，可自行覆蓋）</span><input type="text" value="ORD20260912009"></div>
+      <div class="field"><span class="lbl">目標金額（USDT，最多 6 位小數）</span><input type="text" placeholder="100.000000"></div>
+      <button class="btn btn--primary" type="button">建立訂單</button>
+    </form>
+
+    <div class="note">mockup 說明：高密度列表維持表格、僅樣式化（未卡片化，保留比較性）；狀態欄改分色 pill；位址/金額用等寬字型、金額右對齊 tabular-nums；狀態多選篩選改膠囊 chip。正式版 chip 選中態用 <code>.chip:has(input:checked)</code> 純 CSS 達成（此處用 <code>.on</code> class 靜態示意）。</div>
+  </main>
+</div>
+</body>
+</html>

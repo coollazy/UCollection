@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入 - UCollection 後台（mockup）</title>
+<style>
+:root{
+  --bg:#0B0F14; --bg-elev:#0E141B; --surface:#131A22; --surface-2:#1A222C;
+  --border:#232D38; --border-strong:#2E3A47;
+  --text:#E6EDF3; --text-2:#9BA9B7; --text-muted:#64748B;
+  --accent:#2DD4A7; --accent-hover:#4EE7BE; --accent-tint:rgba(45,212,167,.12); --on-accent:#04110D;
+  --danger:#F87171; --danger-tint:rgba(248,113,113,.14);
+  --sp2:8px;--sp3:12px;--sp4:16px;--sp5:20px;--sp6:24px;--sp8:32px;
+  --r-md:10px;--r-lg:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 20px 50px -20px rgba(0,0,0,.8);
+  --font-sans:"Inter","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+
+.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--sp4);
+  background:radial-gradient(1100px 520px at 50% -8%, rgba(45,212,167,.10), transparent 60%), var(--bg)}
+.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp8);box-shadow:var(--shadow)}
+.auth-brand{display:flex;flex-direction:column;align-items:center;gap:var(--sp3);margin-bottom:var(--sp6)}
+.auth-brand svg{width:44px;height:44px}
+.auth-brand .name{font-weight:700;font-size:18px;letter-spacing:.5px}
+.auth-brand .sub{color:var(--text-2);font-size:13px}
+
+.alert{display:flex;gap:var(--sp3);padding:12px var(--sp4);border-radius:var(--r-md);border:1px solid rgba(248,113,113,.35);background:var(--danger-tint);color:#FCA5A5;margin-bottom:var(--sp5);font-size:13px}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:var(--sp4)}
+.field .lbl{font-size:12px;color:var(--text-2);font-weight:500}
+input[type=text],input[type=password]{
+  background:var(--bg-elev);border:1px solid var(--border-strong);border-radius:var(--r-md);
+  color:var(--text);padding:11px 12px;font-size:14px;font-family:inherit;width:100%}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+input::placeholder{color:var(--text-muted)}
+
+.btn--primary{width:100%;margin-top:var(--sp2);padding:11px 14px;border-radius:var(--r-md);border:1px solid var(--accent);
+  background:var(--accent);color:var(--on-accent);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn--primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+
+.foot{text-align:center;color:var(--text-muted);font-size:11px;margin-top:var(--sp6)}
+.code-hint{font-family:var(--font-mono);color:var(--text-2)}
+</style>
+</head>
+<body>
+<!-- ============ 設計 mockup：真實 login 內容套新樣式（置中卡片，無側邊欄）；totp_verify/setup/reverify 同版型 ============ -->
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,2 28,8.5 28,23.5 16,30 4,23.5 4,8.5" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M11.5 11v6a4.5 4.5 0 0 0 9 0v-6" fill="none" stroke="#2DD4A7" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <div class="name">UCollection</div>
+      <div class="sub">後台登入</div>
+    </div>
+
+    <div class="alert">帳號或密碼錯誤，請重試。</div>
+
+    <form>
+      <div class="field"><span class="lbl">帳號</span><input type="text" autofocus placeholder="merchant01"></div>
+      <div class="field"><span class="lbl">密碼</span><input type="password" placeholder="••••••••"></div>
+      <button class="btn--primary" type="button">登入</button>
+    </form>
+
+    <div class="foot">單租戶自架・USDT-TRC20 代收系統 · <span class="code-hint">2FA 保護</span></div>
+  </div>
+</div>
+</body>
+</html>

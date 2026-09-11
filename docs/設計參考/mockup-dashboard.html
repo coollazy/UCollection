@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>儀表板 - UCollection 後台（mockup）</title>
+<style>
+:root{
+  --bg:#0B0F14; --bg-elev:#0E141B; --surface:#131A22; --surface-2:#1A222C;
+  --border:#232D38; --border-strong:#2E3A47;
+  --text:#E6EDF3; --text-2:#9BA9B7; --text-muted:#64748B;
+  --accent:#2DD4A7; --accent-hover:#4EE7BE; --accent-tint:rgba(45,212,167,.12); --on-accent:#04110D;
+  --success:#34D399; --success-tint:rgba(52,211,153,.14);
+  --warning:#FBBF24; --warning-tint:rgba(251,191,36,.14);
+  --danger:#F87171;  --danger-tint:rgba(248,113,113,.14);
+  --info:#60A5FA;    --info-tint:rgba(96,165,250,.14);
+  --cyan:#22D3EE;    --cyan-tint:rgba(34,211,238,.14);
+  --neutral:#94A3B8; --neutral-tint:rgba(148,163,184,.14);
+  --sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:20px;--sp6:24px;--sp8:32px;--sp10:40px;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;--r-pill:999px;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -16px rgba(0,0,0,.7);
+  --font-sans:"Inter","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sidebar-w:240px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-hover)}
+h1{font-size:22px;font-weight:600;margin:0}
+h2{font-size:15px;font-weight:600;margin:0 0 var(--sp4)}
+strong{color:var(--text)}
+
+/* layout */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex:0 0 var(--sidebar-w);background:var(--bg-elev);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:var(--sp5) var(--sp3)}
+.main{flex:1;min-width:0;padding:var(--sp8)}
+.main-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp4);margin-bottom:var(--sp6)}
+.main-head .sub{color:var(--text-2);font-size:13px;margin-top:4px}
+
+/* brand */
+.brand{display:flex;align-items:center;gap:var(--sp3);padding:0 var(--sp2) var(--sp5)}
+.brand svg{width:28px;height:28px;flex:0 0 28px}
+.brand-name{font-weight:700;font-size:16px;letter-spacing:.5px}
+
+/* nav */
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:var(--sp3);padding:9px var(--sp3);border-radius:var(--r-md);color:var(--text-2);font-weight:500}
+.nav a svg{width:18px;height:18px;flex:0 0 18px;stroke:currentColor;fill:none;stroke-width:1.8}
+.nav a:hover{background:var(--surface);color:var(--text)}
+.nav a.active{background:var(--accent-tint);color:var(--accent)}
+.nav-group-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);padding:var(--sp5) var(--sp3) var(--sp2)}
+.sidebar-foot{margin-top:auto;padding-top:var(--sp4);border-top:1px solid var(--border)}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent-tint);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.userbox{display:flex;align-items:center;gap:var(--sp2);color:var(--text-2);font-size:13px}
+
+/* grid + card */
+.grid{display:grid;gap:var(--sp5)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:2fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp5);box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:600;color:var(--text-2);margin:0 0 var(--sp4);display:flex;align-items:center;gap:var(--sp2)}
+.card-title svg{width:16px;height:16px;stroke:var(--text-muted);fill:none;stroke-width:1.8}
+
+/* stat tile */
+.stat .label{font-size:12px;color:var(--text-2);letter-spacing:.3px}
+.stat .value{font-family:var(--font-mono);font-size:30px;font-weight:600;margin-top:var(--sp2);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.stat .unit{font-size:13px;color:var(--text-muted);margin-left:6px;font-family:var(--font-sans);font-weight:400}
+.stat.accent .value{color:var(--accent)}
+.stat.danger .value{color:var(--danger)}
+
+/* rows / kv */
+.rows{display:flex;flex-direction:column;gap:var(--sp3)}
+.row{display:flex;justify-content:space-between;gap:var(--sp4);padding:10px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.row .k{color:var(--text-2)}
+.row .v{color:var(--text);font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+time{color:inherit}
+
+/* pill */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600;line-height:1.4;border:1px solid transparent;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill--completed{color:var(--success);background:var(--success-tint);border-color:rgba(52,211,153,.3)}
+.pill--confirming{color:var(--warning);background:var(--warning-tint);border-color:rgba(251,191,36,.3)}
+.pill--pending{color:var(--info);background:var(--info-tint);border-color:rgba(96,165,250,.3)}
+.pill--overpaid{color:var(--cyan);background:var(--cyan-tint);border-color:rgba(34,211,238,.3)}
+.pill--expired{color:var(--neutral);background:var(--neutral-tint);border-color:rgba(148,163,184,.3)}
+.pill--stalled,.pill--abnormal{color:var(--danger);background:var(--danger-tint);border-color:rgba(248,113,113,.3)}
+
+.badge-link{font-weight:700}
+.note{background:#0d1622;border:1px dashed var(--border-strong);border-radius:var(--r-md);padding:var(--sp3) var(--sp4);color:var(--text-muted);font-size:12px;margin-top:var(--sp6)}
+
+@media(max-width:900px){
+  .sidebar{position:static;width:100%;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--sp2)}
+  .brand{padding:var(--sp2)}
+  .nav{flex-direction:row;flex-wrap:wrap}
+  .nav-group-label,.sidebar-foot{display:none}
+  .main{padding:var(--sp5)}
+  .grid-3,.grid-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<!-- ============ 這是設計 mockup，用真實 dashboard 頁面內容套上新樣式；非正式模板，勿直接複製回 internal/ ============ -->
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M12 12v5a4 4 0 0 0 8 0v-5" fill="none" stroke="#2DD4A7" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span class="brand-name">UCollection</span>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>儀表板</a>
+      <a href="#"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>訂單列表</a>
+      <a href="#"><svg viewBox="0 0 24 24"><polyline points="4 7 12 3 20 7"/><polyline points="4 12 12 16 20 12"/><polyline points="4 17 12 21 20 17"/></svg>手動歸集</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知歷史</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>稽核日誌</a>
+
+      <div class="nav-group-label">設定</div>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="16" cy="12" r="2"/></svg>代收主錢包</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><line x1="11" y1="12" x2="20" y2="3"/><line x1="17" y1="6" x2="20" y2="9"/></svg>API Key 管理</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Webhook 設定</a>
+      <a href="#"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數設定</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>歸集地址簿</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>手續費來源地址簿</a>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>修改密碼</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="userbox"><span class="avatar">M</span><span>merchant01</span></div>
+      <div style="margin-top:var(--sp3)"><a href="#" style="color:var(--danger);font-size:13px">登出</a></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-head">
+      <div>
+        <h1>儀表板</h1>
+        <div class="sub">系統總覽・鏈上監控同步狀態</div>
+      </div>
+      <div class="userbox"><span class="avatar">M</span><span>merchant01</span></div>
+    </div>
+
+    <!-- 統計（對應真實 dashboard 的三個統計數字） -->
+    <div class="grid grid-3" style="margin-bottom:var(--sp5)">
+      <div class="card stat accent">
+        <div class="label">總收款金額（USDT）</div>
+        <div class="value">128,450.32</div>
+      </div>
+      <div class="card stat">
+        <div class="label">待處理訂單數</div>
+        <div class="value">37 <span class="unit">筆</span></div>
+      </div>
+      <div class="card stat danger">
+        <div class="label">異常訂單數</div>
+        <div class="value">2 <span class="unit">筆</span></div>
+        <div style="margin-top:var(--sp3)"><a class="badge-link" href="#">查看 ILLEGAL_STATE_TRANSITION →</a></div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- 鏈上監控同步狀態 -->
+      <div class="card">
+        <div class="card-title"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>鏈上監控同步狀態</div>
+        <div class="rows">
+          <div class="row"><span class="k">上次成功同步（事件掃描）</span><span class="v"><time datetime="2026-09-12T06:14:03Z">2026-09-12 14:14:03</time></span></div>
+          <div class="row"><span class="k">上次成功同步（最終確定判定）</span><span class="v"><time datetime="2026-09-12T06:13:41Z">2026-09-12 14:13:41</time></span></div>
+          <div class="row"><span class="k">卡在守門條件、尚未能判定的訂單</span><span class="pill pill--stalled">3 筆</span></div>
+        </div>
+      </div>
+
+      <!-- Webhook 通知 -->
+      <div class="card">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Webhook 通知</div>
+        <div class="rows">
+          <div class="row"><span class="k">失敗中 / 待重試</span><span class="pill pill--stalled">5 筆</span></div>
+          <div class="row"><span class="k">待設定（未設定 url/secret）</span><span class="pill pill--pending">1 筆</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 狀態 pill 色板一覽（給你確認語意配色，正式頁不會有這一區） -->
+    <div class="card" style="margin-top:var(--sp5)">
+      <div class="card-title">訂單狀態分色 pill（配色預覽）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp3)">
+        <span class="pill pill--pending">PENDING</span>
+        <span class="pill pill--confirming">CONFIRMING</span>
+        <span class="pill pill--completed">COMPLETED</span>
+        <span class="pill pill--overpaid">OVERPAID</span>
+        <span class="pill pill--expired">EXPIRED</span>
+        <span class="pill pill--stalled">CONFIRMATION_STALLED</span>
+      </div>
+    </div>
+
+    <div class="note">mockup 說明：以真實 dashboard 內容（三統計 + 同步狀態 + Webhook）套新樣式，未加參考圖裡的折線圖（Q4 決定本次不做圖表）。時間欄用 <code>&lt;time&gt;</code> 保留 localtime.js fallback 精神。字型堆疊首選 Inter/JetBrains Mono，未安裝時自動 fallback 系統字型，無任何外部請求。</div>
+  </main>
+</div>
+</body>
+</html>
