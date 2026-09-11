@@ -1,0 +1,13 @@
+{{define "status_region"}}
+<div id="status-region"
+     data-status-url="{{.StatusURL}}"
+     data-remaining="{{.RemainingSeconds}}"
+     data-countdown="{{.ShowCountdown}}"
+     data-terminal="{{.IsTerminal}}">
+  <p class="status-label"><strong>狀態：{{.Label}}</strong></p>
+  <p class="status-detail">{{.Detail}}</p>
+  {{if .ShowCountdown}}
+  <p class="countdown">剩餘時間：<span data-countdown-display>{{.RemainingSeconds}} 秒</span></p>
+  {{end}}
+</div>
+{{end}}

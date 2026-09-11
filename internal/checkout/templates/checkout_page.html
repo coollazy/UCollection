@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>USDT 付款 - UCollection</title>
+</head>
+<body>
+<main>
+  <h1>USDT 付款</h1>
+
+  <p>應付金額：<strong>{{amt .TargetAmount}} USDT</strong></p>
+
+  {{if .QRDataURI}}
+  <p><img src="{{.QRDataURI}}" alt="收款地址 QR Code" width="256" height="256"></p>
+  {{end}}
+
+  <p>收款地址（USDT-TRC20）：</p>
+  <p><code>{{.Address}}</code></p>
+
+  <p>請使用支援 TRC20 的錢包掃描上方 QR Code，或複製收款地址，轉入所示金額的 USDT。QR Code 僅含收款地址，金額請自行核對後輸入。</p>
+
+  {{template "status_region" .}}
+</main>
+<script src="/static/js/checkout.js"></script>
+</body>
+</html>

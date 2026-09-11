@@ -32,6 +32,20 @@ func GetByMerchantOrderNo(ctx context.Context, pool *store.Pool, merchantOrderNo
 	return o, err
 }
 
+// GetByPublicToken reads one order by its public_token (unique per 第2節,
+// the unguessable crypto/rand identifier used by the /checkout/{token}
+// front-end page, 見第6節). Returns ErrOrderNotFound if it doesn't exist —
+// callers (internal/checkout) must return 404 without distinguishing
+// "malformed" from "not found", to avoid enabling token probing.
+func GetByPublicToken(ctx context.Context, pool *store.Pool, token string) (Order, error) {
+	row := pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE public_token = $1`, token)
+	o, err := scanOrder(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, ErrOrderNotFound
+	}
+	return o, err
+}
+
 // DetectedAmount sums every incoming_transactions row for orderID
 // regardless of confirmed status (技術架構設計第7節「查詢API」：累計已偵測金額).
 func DetectedAmount(ctx context.Context, pool *store.Pool, orderID int64) (int64, error) {

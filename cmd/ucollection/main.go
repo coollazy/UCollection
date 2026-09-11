@@ -16,6 +16,7 @@ import (
 	"github.com/coollazy/UCollection/internal/admin"
 	"github.com/coollazy/UCollection/internal/api"
 	"github.com/coollazy/UCollection/internal/auth"
+	"github.com/coollazy/UCollection/internal/checkout"
 	"github.com/coollazy/UCollection/internal/config"
 	"github.com/coollazy/UCollection/internal/consolidation"
 	"github.com/coollazy/UCollection/internal/scanner"
@@ -77,8 +78,9 @@ func run() error {
 	auth.RegisterRoutes(mux, authDeps)
 	consolidation.RegisterRoutes(mux, consolidationDeps, authDeps)
 	admin.RegisterRoutes(mux, adminDeps, authDeps)
-	// Remaining route prefix per 技術架構設計第1節, not yet built:
-	//   /checkout/{token} -> internal/checkout
+	// Public payment page (技術架構設計第6節). No auth — the unguessable
+	// public_token is the only access control.
+	checkout.RegisterRoutes(mux, checkout.Deps{Pool: pool})
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
