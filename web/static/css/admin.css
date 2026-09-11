@@ -1,0 +1,576 @@
+/*
+ * UCollection 後台共用樣式（暗黑加密風格）
+ *
+ * 設計依據：docs/設計參考/UI改版提案.md（已拍板）
+ * 來源素材：docs/設計參考/mockup-dashboard.html、mockup-orders-list.html、mockup-login.html
+ *           （三份 mockup 皆已由使用者驗收過視覺效果，本檔為整合去重後的正式版）
+ *
+ * 這是「P0 地基」階段的產出：只新增本檔，尚未套用到任何模板。
+ * 三個 package（internal/admin、internal/consolidation、internal/auth）
+ * 之後皆 <link rel="stylesheet" href="/static/css/admin.css"> 共用同一份。
+ */
+
+/* ==========================================================================
+   0. 字型（本地離線 woff2，Latin 子集化；CJK 走系統字型堆疊，不自架）
+   ========================================================================== */
+
+@font-face {
+  font-family: "Inter";
+  src: url("/static/fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/static/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   1. Design tokens
+   ========================================================================== */
+
+:root {
+  /* 中性色（背景 / 前景 / 邊框） */
+  --bg: #0B0F14;
+  --bg-elev: #0E141B;
+  --surface: #131A22;
+  --surface-2: #1A222C;
+  --border: #232D38;
+  --border-strong: #2E3A47;
+  --text: #E6EDF3;
+  --text-2: #9BA9B7;
+  --text-muted: #64748B;
+
+  /* 強調色（品牌青綠） */
+  --accent: #2DD4A7;
+  --accent-hover: #4EE7BE;
+  --accent-tint: rgba(45, 212, 167, .12);
+  --on-accent: #04110D;
+
+  /* 狀態語意色（6 種，pill / alert / flash 共用） */
+  --success: #34D399;
+  --success-tint: rgba(52, 211, 153, .14);
+  --warning: #FBBF24;
+  --warning-tint: rgba(251, 191, 36, .14);
+  --info: #60A5FA;
+  --info-tint: rgba(96, 165, 250, .14);
+  --cyan: #22D3EE;
+  --cyan-tint: rgba(34, 211, 238, .14);
+  --neutral: #94A3B8;
+  --neutral-tint: rgba(148, 163, 184, .14);
+  --danger: #F87171;
+  --danger-tint: rgba(248, 113, 113, .14);
+
+  /* 間距 */
+  --sp1: 4px;
+  --sp2: 8px;
+  --sp3: 12px;
+  --sp4: 16px;
+  --sp5: 20px;
+  --sp6: 24px;
+  --sp8: 32px;
+  --sp10: 40px;
+
+  /* 圓角 */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* 陰影（暗底可見度低，只作卡片輕微浮起，層次主要靠 bg 階與邊框） */
+  --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 28px -16px rgba(0, 0, 0, .7);
+
+  /* 側邊欄寬 */
+  --sidebar-w: 240px;
+
+  /* 字型堆疊 */
+  --font-sans: "Inter", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC",
+    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace,
+    SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ==========================================================================
+   2. Reset & base
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+
+h1 { font-size: 22px; font-weight: 600; margin: 0; }
+h2 { font-size: 15px; font-weight: 600; margin: var(--sp6) 0 var(--sp4); }
+strong { color: var(--text); }
+
+/* <time> 預設情境下（例如表格內的時間欄）採次要文字色；
+   若出現在 .kv/.rows 的值欄（.v）內，會被較高優先權的 .kv .v/.rows .v 規則覆蓋為主要文字色 */
+.table time,
+.table-wrap time {
+  color: var(--text-2);
+}
+
+/* ==========================================================================
+   3. 版面：側邊欄 + 主內容
+   ========================================================================== */
+
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp5) var(--sp3);
+}
+
+.main { flex: 1; min-width: 0; padding: var(--sp8); }
+
+.main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp4);
+  margin-bottom: var(--sp6);
+}
+.main-head .sub { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+
+/* 品牌區 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: 0 var(--sp2) var(--sp5);
+}
+.brand svg { width: 28px; height: 28px; flex: 0 0 28px; }
+.brand-name { font-weight: 700; font-size: 16px; letter-spacing: .5px; }
+
+/* 主導覽 */
+.nav { display: flex; flex-direction: column; gap: 2px; }
+
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: 9px var(--sp3);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-weight: 500;
+}
+.nav a svg { width: 18px; height: 18px; flex: 0 0 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.nav a:hover { background: var(--surface); color: var(--text); }
+.nav a.active { background: var(--accent-tint); color: var(--accent); }
+
+.nav-group-label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: var(--sp5) var(--sp3) var(--sp2);
+}
+
+/* 設定分組：<details> 保留無 JS 亦可運作的可折疊語意（沿用現有 _nav.html 做法） */
+.nav details { margin: 0; }
+.nav details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: 9px var(--sp3);
+  margin-top: var(--sp2);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.nav details > summary::-webkit-details-marker { display: none; }
+.nav details > summary:hover { background: var(--surface); color: var(--text); }
+.nav details[open] > summary { color: var(--text); }
+.nav details > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .15s;
+}
+.nav details[open] > summary::after { transform: rotate(-135deg); }
+
+/* 折疊內的子項：目前 _nav.html 是 <a> 直接接在 <details> 底下（無包裝 div），
+   也相容日後若改為 <div class="nav-sub"> 包裝子項的寫法 */
+.nav details > a,
+.nav details .nav-sub a {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: 8px var(--sp3) 8px calc(var(--sp3) + 22px);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-weight: 500;
+  font-size: 13px;
+}
+.nav details > a:hover,
+.nav details .nav-sub a:hover { background: var(--surface); color: var(--text); }
+.nav details > a.active,
+.nav details .nav-sub a.active { background: var(--accent-tint); color: var(--accent); }
+
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: var(--sp4);
+  border-top: 1px solid var(--border);
+}
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.userbox { display: flex; align-items: center; gap: var(--sp2); color: var(--text-2); font-size: 13px; }
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp2);
+  }
+  .brand { padding: var(--sp2); }
+  .nav { flex-direction: row; flex-wrap: wrap; }
+  .nav-group-label, .sidebar-foot { display: none; }
+  .main { padding: var(--sp5); }
+  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   4. Grid / 卡片 / 統計磚
+   ========================================================================== */
+
+.grid { display: grid; gap: var(--sp5); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: 2fr 1fr; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp5);
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 0 0 var(--sp4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+}
+.card-title svg { width: 16px; height: 16px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; }
+
+/* 統計磚：小 label + 大數字（mono）+ 單位 */
+.stat .label { font-size: 12px; color: var(--text-2); letter-spacing: .3px; }
+.stat .value {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 600;
+  margin-top: var(--sp2);
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+}
+.stat .unit { font-size: 13px; color: var(--text-muted); margin-left: 6px; font-family: var(--font-sans); font-weight: 400; }
+.stat.accent .value { color: var(--accent); }
+.stat.danger .value { color: var(--danger); }
+
+/* ==========================================================================
+   5. KV 明細表（例如 order_detail 的「基本資料」、dashboard 的同步狀態列）
+   ========================================================================== */
+
+.kv, .rows { display: flex; flex-direction: column; gap: var(--sp3); }
+
+.kv .item, .rows .row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp4);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.kv .item:last-child, .rows .row:last-child { border-bottom: none; }
+
+.kv .k, .rows .row .k { color: var(--text-2); flex: 0 0 auto; }
+.kv .v, .rows .row .v {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.kv .v time, .rows .row .v time { color: inherit; }
+
+/* ==========================================================================
+   6. 表格（高密度列表：訂單列表 / 稽核日誌 / 入帳明細 / 待歸集列表）
+   ========================================================================== */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 12px var(--sp4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px var(--sp4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: var(--surface-2); }
+
+.mono { font-family: var(--font-mono); }
+.addr { font-family: var(--font-mono); color: var(--text-2); }
+.num { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+th.num { text-align: right; }
+
+/* ==========================================================================
+   7. 狀態 pill（訂單狀態 / 歸集狀態 / webhook 狀態 / 廣播狀態共用）
+   ========================================================================== */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.pill--pending { color: var(--info); background: var(--info-tint); border-color: rgba(96, 165, 250, .3); }
+.pill--confirming { color: var(--warning); background: var(--warning-tint); border-color: rgba(251, 191, 36, .3); }
+.pill--completed { color: var(--success); background: var(--success-tint); border-color: rgba(52, 211, 153, .3); }
+.pill--overpaid { color: var(--cyan); background: var(--cyan-tint); border-color: rgba(34, 211, 238, .3); }
+.pill--expired { color: var(--neutral); background: var(--neutral-tint); border-color: rgba(148, 163, 184, .3); }
+.pill--stalled, .pill--abnormal { color: var(--danger); background: var(--danger-tint); border-color: rgba(248, 113, 113, .3); }
+
+/* ==========================================================================
+   8. Alert（取代現有 inline color:red/green/blue）
+   ========================================================================== */
+
+.alert {
+  display: flex;
+  gap: var(--sp3);
+  padding: 12px var(--sp4);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  margin-bottom: var(--sp4);
+  font-size: 13px;
+}
+.alert--error { background: var(--danger-tint); border-color: rgba(248, 113, 113, .35); color: #FCA5A5; }
+.alert--success { background: var(--success-tint); border-color: rgba(52, 211, 153, .35); color: #86EFAC; }
+.alert--info { background: var(--info-tint); border-color: rgba(96, 165, 250, .35); color: #93C5FD; }
+
+/* ==========================================================================
+   9. 表單 / 篩選
+   ========================================================================== */
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field .lbl { font-size: 12px; color: var(--text-2); font-weight: 500; }
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--sp4); align-items: flex-end; }
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="password"],
+select {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  min-width: 180px;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+input::placeholder { color: var(--text-muted); }
+
+/* 狀態多選篩選：膠囊 chip。正式頁用 .chip:has(input:checked) 純 CSS 達成選中態，
+   .chip.on 保留作為不支援 :has() 環境或以 JS/後端渲染直接標記選中的相容寫法 */
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp2); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+.chip input { display: none; }
+.chip.on,
+.chip:has(input:checked) {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   10. 按鈕
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp2);
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
+
+.btn--danger { background: var(--surface-2); border-color: rgba(248, 113, 113, .4); color: var(--danger); }
+.btn--danger:hover { background: var(--danger-tint); border-color: var(--danger); color: var(--danger); }
+
+.btn--sm { padding: 5px 10px; font-size: 12px; }
+
+/* ==========================================================================
+   11. TOTP 驗證碼輸入
+   ========================================================================== */
+
+.input--code {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  letter-spacing: 8px;
+  text-align: center;
+  max-width: 220px;
+}
+
+/* ==========================================================================
+   12. 清單頁常用小工具（工具列 / 分頁 / 次要文字）
+   ========================================================================== */
+
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp4); margin: var(--sp5) 0 var(--sp3); }
+.pager { display: flex; gap: var(--sp2); align-items: center; margin-top: var(--sp4); }
+.muted { color: var(--text-2); font-size: 13px; }
+
+/* ==========================================================================
+   13. 登入 / TOTP 極簡頁（置中卡片，無側邊欄）
+   ========================================================================== */
+
+.auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp4);
+  background:
+    radial-gradient(1100px 520px at 50% -8%, rgba(45, 212, 167, .10), transparent 60%),
+    var(--bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp8);
+  box-shadow: var(--shadow);
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp3);
+  margin-bottom: var(--sp6);
+}
+.auth-brand svg { width: 44px; height: 44px; }
+.auth-brand .name { font-weight: 700; font-size: 18px; letter-spacing: .5px; }
+.auth-brand .sub { color: var(--text-2); font-size: 13px; }
+
+.auth .field { margin-bottom: var(--sp4); }
+
+.auth .btn--primary {
+  width: 100%;
+  display: block;
+  text-align: center;
+  margin-top: var(--sp2);
+  padding: 11px 14px;
+  font-size: 14px;
+}
+
+.foot { text-align: center; color: var(--text-muted); font-size: 11px; margin-top: var(--sp6); }
+.code-hint { font-family: var(--font-mono); color: var(--text-2); }

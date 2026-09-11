@@ -16,7 +16,7 @@ import (
 // 對master_wallets表本身的同一句話). connect-src 'self' stays because this
 // page submits xpub via fetch(), not a native <form> — form-action 'none'
 // is therefore also left untouched (no form submission ever happens here).
-const masterWalletNewCSPHeader = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+const masterWalletNewCSPHeader = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 // masterWalletNewPageHandler implements GET /admin/master-wallets/new
 // (技術架構設計第11節「新增」). All key derivation happens client-side in the

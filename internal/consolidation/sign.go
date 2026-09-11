@@ -15,7 +15,7 @@ import (
 // verbatim (CLAUDE.md安全鐵律3：處理助記詞/私鑰輸入的頁面套用嚴格CSP，離線bundle，無
 // inline script/CDN). Not derived from any request input, so it's a plain
 // constant, not built per-request.
-const signCSPHeader = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+const signCSPHeader = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 // signItem is one order the operator selected — 技術架構設計第10節「對每個勾選
 // 地址...」. Address's meaning depends on Type: in consolidation mode it's
