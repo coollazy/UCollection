@@ -5,93 +5,109 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>訂單明細 #{{.Order.ID}}</h1>
-{{if .Flash}}<p style="color:green">操作成功（{{.Flash}}）</p>{{end}}
-{{if .FlashError}}<p style="color:red">操作失敗（{{.FlashError}}）</p>{{end}}
-{{if .TOTPReverifiedNotice}}<p style="color:blue">{{.TOTPReverifiedNotice}}</p>{{end}}
+<div class="main-head"><div><h1>訂單明細 #{{.Order.ID}}</h1></div></div>
+{{if .Flash}}<div class="alert alert--success">操作成功（{{.Flash}}）</div>{{end}}
+{{if .FlashError}}<div class="alert alert--error">操作失敗（{{.FlashError}}）</div>{{end}}
+{{if .TOTPReverifiedNotice}}<div class="alert alert--info">{{.TOTPReverifiedNotice}}</div>{{end}}
 
-<h2>基本資料</h2>
-<table border="1" cellpadding="4">
-  <tr><th>merchant_order_no</th><td>{{.Order.MerchantOrderNo}}</td></tr>
-  <tr><th>public_token</th><td>{{.Order.PublicToken}}</td></tr>
-  <tr><th>代收主錢包ID</th><td>{{.Order.MasterWalletID}}</td></tr>
-  <tr><th>衍生索引</th><td>{{.Order.DerivationIndex}}</td></tr>
-  <tr><th>地址</th><td>{{.Order.Address}}</td></tr>
-  <tr><th>狀態</th><td>{{.Order.Status}}</td></tr>
-  <tr><th>目標金額（USDT）</th><td>{{amt .Order.TargetAmount}}</td></tr>
-  <tr><th>容許區間（USDT）</th><td>{{amt .Order.AmountLowerBound}} ~ {{amt .Order.AmountUpperBound}}</td></tr>
-  <tr><th>到期時間</th><td>{{ts .Order.ExpiresAt}}</td></tr>
-  <tr><th>歸集狀態</th><td>{{.Order.ConsolidationStatus}}</td></tr>
-  <tr><th>建立時間</th><td>{{ts .Order.CreatedAt}}</td></tr>
-</table>
+<div class="card" style="margin-bottom:var(--sp5)">
+<div class="card-title">基本資料</div>
+<div class="rows">
+  <div class="row"><span class="k">merchant_order_no</span><span class="v">{{.Order.MerchantOrderNo}}</span></div>
+  <div class="row"><span class="k">public_token</span><span class="v mono">{{.Order.PublicToken}}</span></div>
+  <div class="row"><span class="k">代收主錢包ID</span><span class="v">{{.Order.MasterWalletID}}</span></div>
+  <div class="row"><span class="k">衍生索引</span><span class="v">{{.Order.DerivationIndex}}</span></div>
+  <div class="row"><span class="k">地址</span><span class="v mono">{{.Order.Address}}</span></div>
+  <div class="row"><span class="k">狀態</span><span class="v">{{pill .Order.Status}}</span></div>
+  <div class="row"><span class="k">目標金額（USDT）</span><span class="v">{{amt .Order.TargetAmount}}</span></div>
+  <div class="row"><span class="k">容許區間（USDT）</span><span class="v">{{amt .Order.AmountLowerBound}} ~ {{amt .Order.AmountUpperBound}}</span></div>
+  <div class="row"><span class="k">到期時間</span><span class="v">{{ts .Order.ExpiresAt}}</span></div>
+  <div class="row"><span class="k">歸集狀態</span><span class="v">{{pill .Order.ConsolidationStatus}}</span></div>
+  <div class="row"><span class="k">建立時間</span><span class="v">{{ts .Order.CreatedAt}}</span></div>
+</div>
+</div>
 
 <h2>狀態變更歷史</h2>
-<table border="1" cellpadding="4">
+<div class="table-wrap">
+<table class="table">
   <tr><th>時間</th><th>從</th><th>到</th><th>操作者</th><th>備註</th></tr>
   {{range .Transitions}}
-  <tr><td>{{ts .CreatedAt}}</td><td>{{.FromStatus}}</td><td>{{.ToStatus}}</td><td>{{.ChangedBy}}</td><td>{{.Note}}</td></tr>
+  <tr><td>{{ts .CreatedAt}}</td><td>{{pill .FromStatus}}</td><td>{{pill .ToStatus}}</td><td>{{.ChangedBy}}</td><td>{{.Note}}</td></tr>
   {{end}}
 </table>
+</div>
 
 <h2>入帳明細</h2>
-<table border="1" cellpadding="4">
-  <tr><th>tx_hash</th><th>log_index</th><th>金額（USDT）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
+<div class="table-wrap">
+<table class="table">
+  <tr><th>tx_hash</th><th>log_index</th><th class="num">金額（USDT）</th><th>已確認</th><th>區塊高度</th><th>建立時間</th></tr>
   {{range .IncomingTransactions}}
-  <tr><td>{{.TxHash}}</td><td>{{.LogIndex}}</td><td>{{amt .Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{ts .CreatedAt}}</td></tr>
+  <tr><td class="mono">{{.TxHash}}</td><td>{{.LogIndex}}</td><td class="num">{{amt .Amount}}</td><td>{{.Confirmed}}</td><td>{{.BlockNumber}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
+</div>
 
 <h2>Webhook 通知記錄</h2>
 {{range .WebhookDeliveries}}
-<p>event_type={{.EventType}} status={{.Status}} attempt_count={{.AttemptCount}}</p>
-<table border="1" cellpadding="4">
+<p>event_type={{.EventType}} status={{pill .Status}} attempt_count={{.AttemptCount}}</p>
+<div class="table-wrap">
+<table class="table">
   <tr><th>#</th><th>HTTP狀態</th><th>回應內容</th><th>時間</th><th>觸發來源</th></tr>
   {{range .Attempts}}
   <tr><td>{{.AttemptNo}}</td><td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}（網路層失敗）{{end}}</td><td>{{if .ResponseBody}}{{.ResponseBody}}{{end}}</td><td>{{ts .AttemptedAt}}</td><td>{{.TriggeredBy}}</td></tr>
   {{end}}
 </table>
+</div>
 {{else}}
-<p>無通知記錄。</p>
+<p class="muted">無通知記錄。</p>
 {{end}}
 
 {{if .ConsolidationItems}}
 <h2>歸集記錄</h2>
-<table border="1" cellpadding="4">
-  <tr><th>批次ID</th><th>金額（USDT）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+<div class="table-wrap">
+<table class="table">
+  <tr><th>批次ID</th><th class="num">金額（USDT）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .ConsolidationItems}}
-  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td class="num">{{amt .Amount}}</td><td class="mono">{{.TxHash}}</td><td>{{pill .BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
+</div>
 {{end}}
 
 {{if .FeeTopupItems}}
 <h2>TRX 手續費儲值記錄</h2>
-<table border="1" cellpadding="4">
-  <tr><th>批次ID</th><th>金額（TRX）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
+<div class="table-wrap">
+<table class="table">
+  <tr><th>批次ID</th><th class="num">金額（TRX）</th><th>tx_hash</th><th>狀態</th><th>錯誤訊息</th><th>時間</th></tr>
   {{range .FeeTopupItems}}
-  <tr><td>{{.BatchID}}</td><td>{{amt .Amount}}</td><td>{{.TxHash}}</td><td>{{.BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
+  <tr><td>{{.BatchID}}</td><td class="num">{{amt .Amount}}</td><td class="mono">{{.TxHash}}</td><td>{{pill .BroadcastStatus}}</td><td>{{if .ErrorDetail}}{{.ErrorDetail}}{{end}}</td><td>{{ts .CreatedAt}}</td></tr>
   {{end}}
 </table>
+</div>
 {{end}}
 
-<h2>手動重新檢查此地址</h2>
+<div class="card" style="margin-top:var(--sp6)">
+<h2 style="margin-top:0">手動重新檢查此地址</h2>
 <form method="post" action="/admin/orders/{{.Order.ID}}/reverify">
-  <button type="submit">重新查證</button>
+  <button type="submit" class="btn">重新查證</button>
 </form>
+</div>
 
 {{if .ManualWhitelist}}
-<h2>手動改判</h2>
+<div class="card" style="margin-top:var(--sp5)">
+<h2 style="margin-top:0">手動改判</h2>
 <form method="post" action="/admin/orders/{{.Order.ID}}/override-status">
-  <p>目前狀態：{{.Order.Status}}</p>
+  <p>目前狀態：{{pill .Order.Status}}</p>
   <p>改判為：
     {{range .ManualWhitelist}}
     <label><input type="radio" name="to_status" value="{{.}}" required> {{.}}</label>
     {{end}}
   </p>
-  <p><label>改判理由（必填） <input type="text" name="note" required></label></p>
-  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
-  <p><button type="submit">送出改判</button></p>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">改判理由（必填）</span><input type="text" name="note" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <button type="submit" class="btn btn--primary">送出改判</button>
 </form>
+</div>
 {{end}}
 <script src="/static/js/localtime.js"></script>
 </main>

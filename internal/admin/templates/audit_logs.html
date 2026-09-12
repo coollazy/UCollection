@@ -5,30 +5,33 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>稽核日誌</h1>
+<div class="main-head"><div><h1>稽核日誌</h1></div></div>
 
+<div class="card" style="margin-bottom:var(--sp5)">
 <form method="get">
-  <p>
-    <label>actor <input type="text" name="actor" value="{{.Filter.Actor}}"></label>
-    <label>action_type <input type="text" name="action_type" value="{{.Filter.ActionType}}"></label>
-    <label>target_type <input type="text" name="target_type" value="{{.Filter.TargetType}}"></label>
-  </p>
-  <p>
-    <label>建立時間從 <input type="date" name="created_from"></label>
-    <label>到 <input type="date" name="created_to"></label>
-  </p>
-  <p><button type="submit">查詢</button></p>
+  <div class="filters">
+    <div class="field"><span class="lbl">actor</span><input type="text" name="actor" value="{{.Filter.Actor}}"></div>
+    <div class="field"><span class="lbl">action_type</span><input type="text" name="action_type" value="{{.Filter.ActionType}}"></div>
+    <div class="field"><span class="lbl">target_type</span><input type="text" name="target_type" value="{{.Filter.TargetType}}"></div>
+  </div>
+  <div class="filters" style="margin-top:var(--sp4)">
+    <div class="field"><span class="lbl">建立時間從</span><input type="date" name="created_from"></div>
+    <div class="field"><span class="lbl">到</span><input type="date" name="created_to"></div>
+    <div class="field"><button type="submit" class="btn btn--primary">查詢</button></div>
+  </div>
 </form>
+</div>
 
-<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+<div class="toolbar"><span class="muted">共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</span></div>
 
-<table border="1" cellpadding="4">
+<div class="table-wrap">
+<table class="table">
   <tr><th>ID</th><th>actor</th><th>action_type</th><th>target_type</th><th>target_id</th><th>說明</th><th>建立時間</th></tr>
   {{range .Entries}}
   <tr>
     <td>{{.ID}}</td>
     <td>{{.Actor}}</td>
-    <td>{{.ActionType}}</td>
+    <td class="mono">{{.ActionType}}</td>
     <td>{{if .TargetType}}{{.TargetType}}{{end}}</td>
     <td>{{if .TargetID}}{{if .IsOrderTarget}}<a href="/admin/orders/{{.TargetID}}">{{.TargetID}}</a>{{else}}{{.TargetID}}{{end}}{{end}}</td>
     <td>{{desc .}}</td>
@@ -36,11 +39,12 @@
   </tr>
   {{end}}
 </table>
+</div>
 
-<p>
-  {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
-  {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
-</p>
+<div class="pager">
+  {{if .HasPrev}}<a href="?page={{.PrevPage}}" class="btn btn--sm">上一頁</a>{{end}}
+  {{if .HasNext}}<a href="?page={{.NextPage}}" class="btn btn--sm">下一頁</a>{{end}}
+</div>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>

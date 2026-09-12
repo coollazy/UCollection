@@ -19,7 +19,56 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp, "desc": describeAuditLog}).ParseFS(templateFS, "templates/*.html"))
+var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp, "desc": describeAuditLog, "pill": statusPill}).ParseFS(templateFS, "templates/*.html"))
+
+// pillClasses maps every status string this package's templates display
+// (order.Status, order.ConsolidationStatus, consolidation broadcast_status,
+// webhook_deliveries.status) to the admin.css pill modifier class carrying
+// its semantic color (docs/設計參考/UI改版提案.md第2.3節). Kept as a single
+// flat map rather than one switch per domain — none of the literal values
+// collide across domains, and where two domains happen to use the same
+// word ("pending", "failed") they mean the same visual state anyway, so
+// sharing one entry is correct, not a coincidence.
+var pillClasses = map[string]string{
+	"PENDING":              "pill--pending",
+	"CONFIRMING":           "pill--confirming",
+	"COMPLETED":            "pill--completed",
+	"OVERPAID":             "pill--overpaid",
+	"EXPIRED":              "pill--expired",
+	"CONFIRMATION_STALLED": "pill--stalled",
+	"not_consolidated":     "pill--not-consolidated",
+	"consolidated":         "pill--completed",
+	"pending":              "pill--pending",
+	"broadcasting":         "pill--confirming",
+	"success":              "pill--completed",
+	"failed":               "pill--stalled",
+	"sending":              "pill--confirming",
+	"delivered":            "pill--completed",
+	"awaiting_config":      "pill--not-consolidated",
+}
+
+// statusPill renders a status value as a colored `.pill` badge (見
+// admin.css「7. 狀態 pill」). Takes `any`, not `string`, because
+// order.Order.Status is order.Status (a named string type) while every
+// other status field this is called on (ConsolidationStatus,
+// BroadcastStatus, webhook delivery Status, transition From/ToStatus) is a
+// plain string — html/template's function-call type checking is exact, so
+// a `string`-only signature fails at execution time on the named-type
+// callers. fmt.Sprintf("%v", ...) prints any string-kind value as its bare
+// content (no quotes, no type name), which is exactly the lookup key
+// pillClasses needs either way. Unrecognized values (not expected in
+// practice, but status columns have no compile-time-enforced enum here)
+// still render as a bare, colorless `.pill` rather than erroring or
+// silently dropping the text — the value stays visible, it just isn't
+// color-coded.
+func statusPill(status any) template.HTML {
+	s := fmt.Sprintf("%v", status)
+	class := pillClasses[s]
+	if class != "" {
+		class = " " + class
+	}
+	return template.HTML(fmt.Sprintf(`<span class="pill%s">%s</span>`, class, template.HTMLEscapeString(s))) //nolint:gosec // class is looked up from a fixed internal map (never request-derived); status text is HTML-escaped explicitly
+}
 
 // formatMicroAmount converts a stored smallest-unit integer (6 decimals —
 // true for both USDT-TRC20 and TRX's sun) into a human-readable decimal

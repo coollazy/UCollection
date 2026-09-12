@@ -402,7 +402,7 @@ th.num { text-align: right; }
 .pill--confirming { color: var(--warning); background: var(--warning-tint); border-color: rgba(251, 191, 36, .3); }
 .pill--completed { color: var(--success); background: var(--success-tint); border-color: rgba(52, 211, 153, .3); }
 .pill--overpaid { color: var(--cyan); background: var(--cyan-tint); border-color: rgba(34, 211, 238, .3); }
-.pill--expired { color: var(--neutral); background: var(--neutral-tint); border-color: rgba(148, 163, 184, .3); }
+.pill--expired, .pill--not-consolidated { color: var(--neutral); background: var(--neutral-tint); border-color: rgba(148, 163, 184, .3); }
 .pill--stalled, .pill--abnormal { color: var(--danger); background: var(--danger-tint); border-color: rgba(248, 113, 113, .3); }
 
 /* ==========================================================================

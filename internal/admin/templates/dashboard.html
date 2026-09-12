@@ -5,34 +5,44 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>儀表板</h1>
+<div class="main-head"><div><h1>儀表板</h1><div class="sub">系統總覽・鏈上監控同步狀態</div></div></div>
 
-<h2>統計</h2>
-<table border="1" cellpadding="4">
-  <tr><th>總收款金額（USDT）</th><th>待處理訂單數</th><th>異常訂單數</th></tr>
-  <tr>
-    <td>{{amt .Stats.TotalCollected}}</td>
-    <td>{{.Stats.PendingCount}}</td>
-    <td><a href="/admin/audit-logs?action_type=ILLEGAL_STATE_TRANSITION&actor=system">{{.Stats.AbnormalCount}}</a></td>
-  </tr>
-</table>
+<div class="grid grid-3" style="margin-bottom:var(--sp5)">
+  <div class="card stat accent">
+    <div class="label">總收款金額（USDT）</div>
+    <div class="value">{{amt .Stats.TotalCollected}}</div>
+  </div>
+  <div class="card stat">
+    <div class="label">待處理訂單數</div>
+    <div class="value">{{.Stats.PendingCount}}</div>
+  </div>
+  <div class="card stat danger">
+    <div class="label">異常訂單數</div>
+    <div class="value"><a href="/admin/audit-logs?action_type=ILLEGAL_STATE_TRANSITION&actor=system">{{.Stats.AbnormalCount}}</a></div>
+  </div>
+</div>
 
-<h2>鏈上監控同步狀態</h2>
-<p>
-  上次成功同步（事件掃描）：{{if .Sync.LastSyncedAt}}{{ts .Sync.LastSyncedAt}}{{else}}尚未同步{{end}}<br>
-  上次成功同步（最終確定判定）：{{if .Sync.LastFinalitySyncedAt}}{{ts .Sync.LastFinalitySyncedAt}}{{else}}尚未同步{{end}}<br>
-  {{if gt .StuckCount 0}}
-    <strong>有 {{.StuckCount}} 筆訂單卡在守門條件、尚未能判定EXPIRED/CONFIRMATION_STALLED</strong>
-  {{else}}
-    目前沒有訂單卡在守門條件。
-  {{end}}
-</p>
-
-<h2>Webhook 通知</h2>
-<p>
-  失敗中/待重試：{{.WebhookFailing}} 筆<br>
-  待設定（尚未設定 webhook_url/secret）：{{.WebhookAwaitingConfig}} 筆
-</p>
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-title">鏈上監控同步狀態</div>
+    <div class="rows">
+      <div class="row"><span class="k">上次成功同步（事件掃描）</span><span class="v">{{if .Sync.LastSyncedAt}}{{ts .Sync.LastSyncedAt}}{{else}}尚未同步{{end}}</span></div>
+      <div class="row"><span class="k">上次成功同步（最終確定判定）</span><span class="v">{{if .Sync.LastFinalitySyncedAt}}{{ts .Sync.LastFinalitySyncedAt}}{{else}}尚未同步{{end}}</span></div>
+    </div>
+    {{if gt .StuckCount 0}}
+    <div class="alert alert--error" style="margin-top:var(--sp4)">有 {{.StuckCount}} 筆訂單卡在守門條件、尚未能判定EXPIRED/CONFIRMATION_STALLED</div>
+    {{else}}
+    <p class="muted" style="margin-top:var(--sp4)">目前沒有訂單卡在守門條件。</p>
+    {{end}}
+  </div>
+  <div class="card">
+    <div class="card-title">Webhook 通知</div>
+    <div class="rows">
+      <div class="row"><span class="k">失敗中/待重試</span><span class="v">{{.WebhookFailing}} 筆</span></div>
+      <div class="row"><span class="k">待設定（尚未設定 webhook_url/secret）</span><span class="v">{{.WebhookAwaitingConfig}} 筆</span></div>
+    </div>
+  </div>
+</div>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>

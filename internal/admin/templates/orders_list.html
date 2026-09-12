@@ -5,43 +5,47 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>訂單列表</h1>
-{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+<div class="main-head"><div><h1>訂單列表</h1></div></div>
+{{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
 
+<div class="card" style="margin-bottom:var(--sp5)">
 <form method="get">
-  <p>
-    狀態：
-    {{range .AllStatuses}}
-      <label><input type="checkbox" name="status" value="{{.}}" {{if index $.SelectedStatus .}}checked{{end}}> {{.}}</label>
-    {{end}}
-  </p>
-  <p>
-    <label>merchant_order_no（模糊比對） <input type="text" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}"></label>
-    <label>地址（精確比對） <input type="text" name="address" value="{{.Filter.Address}}"></label>
-  </p>
-  <p>
-    <label>代收主錢包ID <input type="number" name="master_wallet_id" value="{{.RawMasterWalletID}}"></label>
-    <label>建立時間從 <input type="date" name="created_from" value="{{.RawCreatedFrom}}"></label>
-    <label>到 <input type="date" name="created_to" value="{{.RawCreatedTo}}"></label>
-  </p>
-  <p><button type="submit">查詢</button></p>
+  <div class="field" style="margin-bottom:var(--sp4)">
+    <span class="lbl">狀態</span>
+    <div class="chips">
+      {{range .AllStatuses}}
+      <label class="chip{{if index $.SelectedStatus .}} on{{end}}"><input type="checkbox" name="status" value="{{.}}" {{if index $.SelectedStatus .}}checked{{end}}> {{.}}</label>
+      {{end}}
+    </div>
+  </div>
+  <div class="filters">
+    <div class="field"><span class="lbl">merchant_order_no（模糊比對）</span><input type="text" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}"></div>
+    <div class="field"><span class="lbl">地址（精確比對）</span><input type="text" name="address" value="{{.Filter.Address}}"></div>
+    <div class="field"><span class="lbl">代收主錢包ID</span><input type="number" name="master_wallet_id" value="{{.RawMasterWalletID}}"></div>
+    <div class="field"><span class="lbl">建立時間從</span><input type="date" name="created_from" value="{{.RawCreatedFrom}}"></div>
+    <div class="field"><span class="lbl">到</span><input type="date" name="created_to" value="{{.RawCreatedTo}}"></div>
+    <div class="field"><button type="submit" class="btn btn--primary">查詢</button></div>
+  </div>
 </form>
+</div>
 
-<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+<div class="toolbar"><span class="muted">共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</span></div>
 
-<table border="1" cellpadding="4">
-  <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th>目標金額（USDT）</th><th>建立時間</th></tr>
+<div class="table-wrap">
+<table class="table">
+  <tr><th>ID</th><th>merchant_order_no</th><th>地址</th><th>狀態</th><th class="num">目標金額（USDT）</th><th>建立時間</th></tr>
   {{range .Orders}}
   <tr>
     <td><a href="/admin/orders/{{.ID}}">{{.ID}}</a></td>
     <td>{{.MerchantOrderNo}}</td>
-    <td>{{.Address}}</td>
-    <td>{{.Status}}</td>
-    <td>{{amt .TargetAmount}}</td>
+    <td class="mono">{{.Address}}</td>
+    <td>{{pill .Status}}</td>
+    <td class="num">{{amt .TargetAmount}}</td>
     <td>{{ts .CreatedAt}}</td>
   </tr>
   {{end}}
 </table>
+</div>
 
 <form method="get">
   <input type="hidden" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}">
@@ -50,8 +54,10 @@
   <input type="hidden" name="master_wallet_id" value="{{.RawMasterWalletID}}">
   <input type="hidden" name="created_from" value="{{.RawCreatedFrom}}">
   <input type="hidden" name="created_to" value="{{.RawCreatedTo}}">
-  {{if .HasPrev}}<button type="submit" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
-  {{if .HasNext}}<button type="submit" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
+  <div class="pager">
+  {{if .HasPrev}}<button type="submit" class="btn btn--sm" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
+  {{if .HasNext}}<button type="submit" class="btn btn--sm" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
+  </div>
 </form>
 
 <form method="get" action="/admin/export/orders">
@@ -61,16 +67,18 @@
   <input type="hidden" name="master_wallet_id" value="{{.RawMasterWalletID}}">
   <input type="hidden" name="created_from" value="{{.RawCreatedFrom}}">
   <input type="hidden" name="created_to" value="{{.RawCreatedTo}}">
-  <button type="submit" name="format" value="csv">匯出CSV</button>
-  <button type="submit" name="format" value="xlsx">匯出Excel</button>
+  <button type="submit" class="btn btn--sm" name="format" value="csv">匯出CSV</button>
+  <button type="submit" class="btn btn--sm" name="format" value="xlsx">匯出Excel</button>
 </form>
 
-<h2>手動建單</h2>
+<div class="card" style="margin-top:var(--sp6)">
+<h2 style="margin-top:0">手動建單</h2>
 <form method="post" action="/admin/orders">
-  <p><label>訂單編號（自動產生，可自行覆蓋） <input type="text" name="merchant_order_no" value="{{.NewOrderMerchantOrderNo}}"></label></p>
-  <p><label>目標金額（USDT，最多6位小數） <input type="text" name="target_amount" required></label></p>
-  <p><button type="submit">建立訂單</button></p>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">訂單編號（自動產生，可自行覆蓋）</span><input type="text" name="merchant_order_no" value="{{.NewOrderMerchantOrderNo}}"></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">目標金額（USDT，最多6位小數）</span><input type="text" name="target_amount" required></div>
+  <button type="submit" class="btn btn--primary">建立訂單</button>
 </form>
+</div>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>
