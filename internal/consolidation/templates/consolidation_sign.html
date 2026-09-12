@@ -9,50 +9,52 @@
 <div class="layout">
 {{template "navMinimal" .}}
 <main class="main">
-<h1>手動歸集簽名</h1>
+<div class="main-head"><div><h1>手動歸集簽名</h1></div></div>
 
-<p><strong>助記詞只在此瀏覽器分頁本機衍生私鑰與簽名，永遠不會送到伺服器。</strong>送出前系統會自動核對衍生出的xpub與本批次記錄的代收主錢包xpub是否逐字相符，以及簽名反推出的地址是否與預期地址相符，兩者皆須通過才會廣播。</p>
+<div class="alert alert--info"><strong>助記詞只在此瀏覽器分頁本機衍生私鑰與簽名，永遠不會送到伺服器。</strong>送出前系統會自動核對衍生出的xpub與本批次記錄的代收主錢包xpub是否逐字相符，以及簽名反推出的地址是否與預期地址相符，兩者皆須通過才會廣播。</div>
 
-<h2>本批次項目（送出前請先核對）</h2>
-<p id="items-loading">項目清單載入中……（若一直停留在此，代表簽名頁的離線JS尚未部署，暫時無法使用本頁）</p>
+<div class="card" style="margin-bottom:var(--sp5)">
+<h2 style="margin-top:0">本批次項目（送出前請先核對）</h2>
+<p id="items-loading" class="muted">項目清單載入中……（若一直停留在此，代表簽名頁的離線JS尚未部署，暫時無法使用本頁）</p>
 <div id="items-list" hidden></div>
+</div>
 
-<h2>輸入助記詞或私鑰</h2>
+<div class="card">
+<h2 style="margin-top:0">輸入助記詞或私鑰</h2>
 <form id="sign-form">
-  <p id="input-mode-toggle" hidden>
+  <div id="input-mode-toggle" hidden style="margin-bottom:var(--sp3)">
     <label><input type="radio" name="input-mode" value="mnemonic" checked> 助記詞</label>
     <label><input type="radio" name="input-mode" value="privkey"> 私鑰（十六進位）</label>
-  </p>
+  </div>
 
-  <p id="mnemonic-field">
-    <label>助記詞 <input type="password" id="mnemonic" autocomplete="off"></label>
-  </p>
-  <p id="privkey-field" hidden>
-    <label>私鑰（64碼十六進位） <input type="password" id="privkey-hex" autocomplete="off"></label>
-  </p>
+  <div id="mnemonic-field" class="field" style="margin-bottom:var(--sp3)">
+    <span class="lbl">助記詞</span><input type="password" id="mnemonic" autocomplete="off">
+  </div>
+  <div id="privkey-field" class="field" hidden style="margin-bottom:var(--sp3)">
+    <span class="lbl">私鑰（64碼十六進位）</span><input type="password" id="privkey-hex" autocomplete="off">
+  </div>
 
   <div id="combined-inputs" hidden>
-    <p><label>代收主錢包助記詞（用於簽名 USDT 歸集） <input type="password" id="combined-master-mnemonic" autocomplete="off"></label></p>
+    <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">代收主錢包助記詞（用於簽名 USDT 歸集）</span><input type="password" id="combined-master-mnemonic" autocomplete="off"></div>
     <p id="combined-fee-mode">
       TRX 手續費來源錢包（用於簽名補 TRX）：
       <label><input type="radio" name="combined-fee-input-mode" value="mnemonic" checked> 助記詞</label>
       <label><input type="radio" name="combined-fee-input-mode" value="privkey"> 私鑰（十六進位）</label>
     </p>
-    <p id="combined-fee-mnemonic-field"><label>TRX 來源助記詞 <input type="password" id="combined-fee-mnemonic" autocomplete="off"></label></p>
-    <p id="combined-fee-privkey-field" hidden><label>TRX 來源私鑰（64碼十六進位） <input type="password" id="combined-fee-privkey" autocomplete="off"></label></p>
+    <div id="combined-fee-mnemonic-field" class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TRX 來源助記詞</span><input type="password" id="combined-fee-mnemonic" autocomplete="off"></div>
+    <div id="combined-fee-privkey-field" class="field" hidden style="margin-bottom:var(--sp3)"><span class="lbl">TRX 來源私鑰（64碼十六進位）</span><input type="password" id="combined-fee-privkey" autocomplete="off"></div>
   </div>
 
   <div id="storage-controls"></div>
 
-  <p><label>TOTP驗證碼（整批只需輸入一次） <input type="text" id="totp-code-input" inputmode="numeric" autocomplete="off"></label></p>
+  <div class="field" style="margin-bottom:var(--sp4)"><span class="lbl">TOTP驗證碼（整批只需輸入一次）</span><input type="text" id="totp-code-input" class="input--code" inputmode="numeric" autocomplete="off"></div>
 
-  <p>
-    <button type="button" id="derive-button">衍生並核對</button>
-    <button type="button" id="sign-button" disabled>簽名並廣播</button>
-  </p>
+  <button type="button" id="derive-button" class="btn">衍生並核對</button>
+  <button type="button" id="sign-button" class="btn btn--primary" disabled>簽名並廣播</button>
 </form>
+</div>
 
-<div id="sign-status" role="status"></div>
+<div id="sign-status" role="status" style="margin-top:var(--sp4)"></div>
 
 <!-- page-data holds pre-marshaled JSON as plain text, HTML-escaped by
      html/template's ordinary (non-JS) auto-escaping — a <script

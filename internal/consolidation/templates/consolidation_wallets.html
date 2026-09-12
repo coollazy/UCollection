@@ -7,15 +7,17 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>手動歸集：選擇代收主錢包</h1>
+<div class="main-head"><div><h1>手動歸集：選擇代收主錢包</h1></div></div>
 {{if not .Wallets}}
-  <p>尚未設定代收主錢包。</p>
+  <p class="muted">尚未設定代收主錢包。</p>
 {{else}}
-  <ul>
+  <div class="card">
+  <div class="rows">
   {{range .Wallets}}
-    <li><a href="/admin/consolidation?master_wallet_id={{.ID}}">代收主錢包 #{{.ID}}（{{.Status}}）</a></li>
+    <div class="row"><a href="/admin/consolidation?master_wallet_id={{.ID}}">代收主錢包 #{{.ID}}</a><span class="v">{{pill .Status}}</span></div>
   {{end}}
-  </ul>
+  </div>
+  </div>
 {{end}}
 </main>
 </div>

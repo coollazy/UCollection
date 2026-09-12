@@ -19,7 +19,47 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp}).ParseFS(templateFS, "templates/*.html"))
+var templates = template.Must(template.New("").Funcs(template.FuncMap{"amt": formatMicroAmount, "ts": formatTimestamp, "pill": statusPill}).ParseFS(templateFS, "templates/*.html"))
+
+// pillClasses/statusPill are duplicated from internal/admin (same mapping,
+// same reasoning as formatMicroAmount's duplication above — see that
+// doc comment). Kept byte-for-byte identical on purpose: if the two ever
+// drift, a status shown here would render a different color than the same
+// status shown in internal/admin (e.g. order.Status on order_detail.html
+// vs. this package's consolidation_pending.html), which would look like a
+// bug even though nothing is functionally wrong.
+var pillClasses = map[string]string{
+	"PENDING":              "pill--pending",
+	"CONFIRMING":           "pill--confirming",
+	"COMPLETED":            "pill--completed",
+	"OVERPAID":             "pill--overpaid",
+	"EXPIRED":              "pill--expired",
+	"CONFIRMATION_STALLED": "pill--stalled",
+	"not_consolidated":     "pill--not-consolidated",
+	"consolidated":         "pill--completed",
+	"pending":              "pill--pending",
+	"broadcasting":         "pill--confirming",
+	"success":              "pill--completed",
+	"failed":               "pill--stalled",
+	"sending":              "pill--confirming",
+	"delivered":            "pill--completed",
+	"awaiting_config":      "pill--not-consolidated",
+	"active":               "pill--completed",
+	"inactive":             "pill--not-consolidated",
+}
+
+// statusPill takes `any`, not `string`, because order.Order.Status is
+// order.Status (a named string type) while every other status field this
+// is called on is a plain string — see internal/admin's identical function
+// for the full explanation (found as a real bug during P2 implementation).
+func statusPill(status any) template.HTML {
+	s := fmt.Sprintf("%v", status)
+	class := pillClasses[s]
+	if class != "" {
+		class = " " + class
+	}
+	return template.HTML(fmt.Sprintf(`<span class="pill%s">%s</span>`, class, template.HTMLEscapeString(s))) //nolint:gosec // class is looked up from a fixed internal map (never request-derived); status text is HTML-escaped explicitly
+}
 
 // formatMicroAmount converts a stored smallest-unit integer (6 decimals —
 // true for both USDT-TRC20 and TRX's sun) into a human-readable decimal

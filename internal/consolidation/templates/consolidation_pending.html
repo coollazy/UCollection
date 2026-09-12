@@ -7,32 +7,36 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1>
-<p><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜ <a href="/admin/consolidation/fee-source-book">手續費來源地址簿</a></p>
-{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
+<div class="main-head"><div><h1>待歸集地址列表（代收主錢包 #{{.MasterWalletID}}）</h1></div></div>
+<p class="muted"><a href="/admin/consolidation">切換代收主錢包</a> ｜ <a href="/admin/consolidation/address-book">歸集地址簿</a> ｜ <a href="/admin/consolidation/fee-source-book">手續費來源地址簿</a></p>
+{{if .Notice}}<div class="alert alert--info">{{.Notice}}</div>{{end}}
 {{if not .Entries}}
-  <p>目前沒有餘額大於0且尚未歸集的地址。</p>
+  <p class="muted">目前沒有餘額大於0且尚未歸集的地址。</p>
 {{else}}
   <form method="post">
   <input type="hidden" name="master_wallet_id" value="{{.MasterWalletID}}">
-  <table border="1" cellpadding="4">
-    <tr><th><label><input type="checkbox" id="select-all-orders"> 全選</label></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th>目標金額（USDT）</th><th>鏈上餘額（USDT）</th></tr>
+  <div class="table-wrap">
+  <table class="table">
+    <tr><th><label><input type="checkbox" id="select-all-orders"> 全選</label></th><th>訂單ID</th><th>地址</th><th>訂單狀態</th><th class="num">目標金額（USDT）</th><th class="num">鏈上餘額（USDT）</th></tr>
     {{range .Entries}}
     <tr>
       <td><input type="checkbox" name="order_id" value="{{.OrderID}}"></td>
       <td>{{.OrderID}}</td>
-      <td>{{.Address}}</td>
-      <td>{{.Status}}</td>
-      <td>{{amt .TargetAmount}}</td>
-      <td>{{amt .Balance}}{{if .OverTarget}} <strong>（超出訂單原定金額）</strong>{{end}}</td>
+      <td class="mono">{{.Address}}</td>
+      <td>{{pill .Status}}</td>
+      <td class="num">{{amt .TargetAmount}}</td>
+      <td class="num">{{amt .Balance}}{{if .OverTarget}} <strong>（超出訂單原定金額）</strong>{{end}}</td>
     </tr>
     {{end}}
   </table>
+  </div>
 
-  <h2>開始歸集</h2>
-  <p>將上方勾選地址的鏈上USDT餘額全額轉入下方目的地地址，並在同一流程內先為這些地址補足所需TRX手續費。下一步會進入整合簽名頁，需要輸入本代收主錢包助記詞與TRX來源金鑰。</p>
-  <p>
-    <label>目的地地址
+  <div class="card" style="margin-top:var(--sp6)">
+  <h2 style="margin-top:0">開始歸集</h2>
+  <p class="muted">將上方勾選地址的鏈上USDT餘額全額轉入下方目的地地址，並在同一流程內先為這些地址補足所需TRX手續費。下一步會進入整合簽名頁，需要輸入本代收主錢包助記詞與TRX來源金鑰。</p>
+  <div class="field" style="margin-bottom:var(--sp3)">
+    <span class="lbl">目的地地址</span>
+    <div style="display:flex;gap:var(--sp2);align-items:center;flex-wrap:wrap">
     {{if .AddressBook}}
       <select data-target-input="dest-addr" hidden>
         {{range .AddressBook}}<option value="{{.Address}}">{{.Label}}（{{.Address}}）</option>{{end}}
@@ -40,23 +44,30 @@
       </select>
     {{end}}
       <input type="text" name="destination_address" id="dest-addr" placeholder="Txxxxxxxx">
-    </label>
-    <button type="button" id="fee-estimate-btn">手續費試算</button>
-  </p>
-  <div id="fee-estimate-result"></div>
+      <button type="button" id="fee-estimate-btn" class="btn btn--sm">手續費試算</button>
+    </div>
+  </div>
+  <div id="fee-estimate-result" class="muted"></div>
 
   <h2>TRX手續費補充</h2>
-  <p>為上方勾選地址逐一補充TRX手續費（供組交易/廣播消耗能量用），與USDT歸集在同一流程內完成。</p>
-  <p><label>手續費支付方式 <select id="fee-payment-method">
-    <option value="trx" selected>支付 TRX</option>
-  </select></label></p>
+  <p class="muted">為上方勾選地址逐一補充TRX手續費（供組交易/廣播消耗能量用），與USDT歸集在同一流程內完成。</p>
+  <div class="field" style="margin-bottom:var(--sp3)">
+    <span class="lbl">手續費支付方式</span>
+    <select id="fee-payment-method">
+      <option value="trx" selected>支付 TRX</option>
+    </select>
+  </div>
   <div id="fee-trx-fields">
-  <p><label>來源分類（僅供稽核記錄，技術上無差異） <select name="fee_source">
-    <option value="A1">A1（商戶自認與代收主錢包相關的資金來源）</option>
-    <option value="A2">A2（商戶自認完全獨立的錢包）</option>
-  </select></label></p>
-  <p>
-    <label>來源地址（商戶自行指定，非代收主錢包HD樹衍生地址）
+  <div class="field" style="margin-bottom:var(--sp3)">
+    <span class="lbl">來源分類（僅供稽核記錄，技術上無差異）</span>
+    <select name="fee_source">
+      <option value="A1">A1（商戶自認與代收主錢包相關的資金來源）</option>
+      <option value="A2">A2（商戶自認完全獨立的錢包）</option>
+    </select>
+  </div>
+  <div class="field" style="margin-bottom:var(--sp3)">
+    <span class="lbl">來源地址（商戶自行指定，非代收主錢包HD樹衍生地址）</span>
+    <div style="display:flex;gap:var(--sp2);align-items:center;flex-wrap:wrap">
     {{if .FeeSourceBook}}
       <select data-target-input="fee-source-address" hidden>
         {{range .FeeSourceBook}}<option value="{{.Address}}">{{.Label}}（{{.Address}}）</option>{{end}}
@@ -64,14 +75,15 @@
       </select>
     {{end}}
       <input type="text" name="fee_source_address" id="fee-source-address">
-    </label>
-    <button type="button" id="check-trx-balance-btn">查餘額</button>
-    <span id="trx-balance-result"></span>
-  </p>
-  <p>每筆補充TRX金額由系統自動試算（首筆較貴、其餘筆較便宜），下一頁會顯示試算結果供核對，這裡不需要填寫。</p>
+      <button type="button" id="check-trx-balance-btn" class="btn btn--sm">查餘額</button>
+      <span id="trx-balance-result" class="muted"></span>
+    </div>
+  </div>
+  <p class="muted">每筆補充TRX金額由系統自動試算（首筆較貴、其餘筆較便宜），下一頁會顯示試算結果供核對，這裡不需要填寫。</p>
   </div>
 
-  <p><button type="submit" formaction="/admin/consolidation/prepare-flow">準備歸集</button></p>
+  <button type="submit" formaction="/admin/consolidation/prepare-flow" class="btn btn--primary">準備歸集</button>
+  </div>
   </form>
 {{end}}
 <script src="/static/js/address-book-select.js"></script>

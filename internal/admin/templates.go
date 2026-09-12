@@ -45,6 +45,8 @@ var pillClasses = map[string]string{
 	"sending":              "pill--confirming",
 	"delivered":            "pill--completed",
 	"awaiting_config":      "pill--not-consolidated",
+	"active":               "pill--completed",
+	"inactive":             "pill--not-consolidated",
 }
 
 // statusPill renders a status value as a colored `.pill` badge (見
