@@ -3,12 +3,20 @@
 <head><meta charset="utf-8"><title>登入 - UCollection 後台</title>
 <link rel="stylesheet" href="/static/css/admin.css"></head>
 <body>
-<h1>後台登入</h1>
-{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
-<form method="post" action="/admin/login">
-  <p><label>帳號 <input type="text" name="username" required autofocus></label></p>
-  <p><label>密碼 <input type="password" name="password" required></label></p>
-  <p><button type="submit">登入</button></p>
-</form>
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,2 28,8.5 28,23.5 16,30 4,23.5 4,8.5" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M11.5 11v6a4.5 4.5 0 0 0 9 0v-6" fill="none" stroke="#2DD4A7" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <div class="name">UCollection</div>
+      <div class="sub">後台登入</div>
+    </div>
+    {{if .Error}}<div class="alert alert--error">{{.Error}}</div>{{end}}
+    <form method="post" action="/admin/login">
+      <div class="field"><span class="lbl">帳號</span><input type="text" name="username" required autofocus></div>
+      <div class="field"><span class="lbl">密碼</span><input type="password" name="password" required></div>
+      <button type="submit" class="btn btn--primary">登入</button>
+    </form>
+  </div>
+</div>
 </body>
 </html>
