@@ -5,46 +5,53 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>Webhook 端點設定</h1>
-{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
-{{if .FlashSuccess}}<p style="color:green">{{.FlashSuccess}}</p>{{end}}
+<div class="main-head"><div><h1>Webhook 端點設定</h1></div></div>
+{{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
+{{if .FlashSuccess}}<div class="alert alert--success">{{.FlashSuccess}}</div>{{end}}
 {{if .GeneratedSecret}}
-<p style="color:red"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong></p>
-<p>Secret: <code>{{.GeneratedSecret}}</code></p>
+<div class="alert alert--error"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong><br><span class="mono">{{.GeneratedSecret}}</span></div>
 {{end}}
 
-<h2>URL</h2>
+<div class="card" style="margin-bottom:var(--sp5)">
+<h2 style="margin-top:0">URL</h2>
 <form method="post" action="/admin/webhook-config">
-  <p><label>Webhook URL <input type="text" name="webhook_url" value="{{.URL}}" placeholder="https://..."></label></p>
-  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
-  <p><button type="submit">更新 URL</button></p>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">Webhook URL</span><input type="text" name="webhook_url" value="{{.URL}}" placeholder="https://..."></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <button type="submit" class="btn btn--primary">更新 URL</button>
 </form>
+</div>
 
-<h2>Secret</h2>
-<p>目前狀態：{{if .SecretConfigured}}已設定{{else}}未設定{{end}}</p>
+<div class="card" style="margin-bottom:var(--sp5)">
+<h2 style="margin-top:0">Secret</h2>
+<p class="muted">目前狀態：{{if .SecretConfigured}}已設定{{else}}未設定{{end}}</p>
 <form method="post" action="/admin/webhook-config/secret">
-  <p>
+  <div class="field" style="margin-bottom:var(--sp3)">
     <label><input type="radio" name="mode" value="generate" checked> 系統產生</label>
     <label><input type="radio" name="mode" value="manual"> 手動輸入 <input type="text" name="secret"></label>
-  </p>
-  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
-  <p><button type="submit" onclick="return confirm('輪替secret沒有過渡期，請確認已準備好同步更新驗簽端設定。');">更新 Secret</button></p>
+  </div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <button type="submit" class="btn btn--danger" onclick="return confirm('輪替secret沒有過渡期，請確認已準備好同步更新驗簽端設定。');">更新 Secret</button>
 </form>
+</div>
 
-<h2>測試</h2>
+<div class="card">
+<h2 style="margin-top:0">測試</h2>
 <form method="post" action="/admin/webhook-config/test">
-  <p><button type="submit">送出測試（TEST_PING）</button></p>
+  <button type="submit" class="btn">送出測試（TEST_PING）</button>
 </form>
 {{if .TestResult}}
-<div>
+<div style="margin-top:var(--sp4)">
   {{if .TestResult.Err}}
-    <p style="color:red">{{.TestResult.Err}}</p>
+    <div class="alert alert--error">{{.TestResult.Err}}</div>
   {{else}}
-    <p>HTTP狀態碼：{{.TestResult.HTTPStatus}}</p>
-    <p>回應內容：<code>{{.TestResult.Body}}</code></p>
+    <div class="rows">
+      <div class="row"><span class="k">HTTP狀態碼</span><span class="v">{{.TestResult.HTTPStatus}}</span></div>
+      <div class="row"><span class="k">回應內容</span><span class="v mono">{{.TestResult.Body}}</span></div>
+    </div>
   {{end}}
 </div>
 {{end}}
+</div>
 </main>
 </div>
 </body>

@@ -5,25 +5,29 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>參數設定</h1>
-{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
-{{if .FlashSuccess}}<p style="color:green">{{.FlashSuccess}}</p>{{end}}
+<div class="main-head"><div><h1>參數設定</h1></div></div>
+{{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
+{{if .FlashSuccess}}<div class="alert alert--success">{{.FlashSuccess}}</div>{{end}}
 
-<p>以下設定僅影響之後新建立的訂單，不會回頭套用到進行中訂單。</p>
+<p class="muted">以下設定僅影響之後新建立的訂單，不會回頭套用到進行中訂單。</p>
 
+<div class="card" style="margin-bottom:var(--sp5)">
 <form method="post" action="/admin/params">
-  <p><label>訂單有效期（秒） <input type="number" name="validity_seconds" value="{{if .ValiditySeconds}}{{.ValiditySeconds}}{{end}}" required></label></p>
-  <p><label>確認等待逾時時間（秒，留空時預設沿用訂單有效期） <input type="number" name="confirmation_stall_timeout_seconds" value="{{if .StallTimeoutSeconds}}{{.StallTimeoutSeconds}}{{end}}"></label></p>
-  <p><button type="submit">更新</button></p>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">訂單有效期（秒）</span><input type="number" name="validity_seconds" value="{{if .ValiditySeconds}}{{.ValiditySeconds}}{{end}}" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">確認等待逾時時間（秒，留空時預設沿用訂單有效期）</span><input type="number" name="confirmation_stall_timeout_seconds" value="{{if .StallTimeoutSeconds}}{{.StallTimeoutSeconds}}{{end}}"></div>
+  <button type="submit" class="btn btn--primary">更新</button>
 </form>
+</div>
 
-<h2>金額容許誤差</h2>
-<p>此設定會影響之後新訂單的短付/溢付判定範圍，變更前需要重新輸入驗證碼。</p>
+<div class="card">
+<h2 style="margin-top:0">金額容許誤差</h2>
+<p class="muted">此設定會影響之後新訂單的短付/溢付判定範圍，變更前需要重新輸入驗證碼。</p>
 <form method="post" action="/admin/params/tolerance">
-  <p><label>金額容許誤差百分比 <input type="text" name="amount_tolerance_percent" value="{{if .AmountTolerancePercent}}{{.AmountTolerancePercent}}{{end}}" required></label></p>
-  <p><label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label></p>
-  <p><button type="submit">更新</button></p>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">金額容許誤差百分比</span><input type="text" name="amount_tolerance_percent" value="{{if .AmountTolerancePercent}}{{.AmountTolerancePercent}}{{end}}" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <button type="submit" class="btn btn--primary">更新</button>
 </form>
+</div>
 </main>
 </div>
 </body>

@@ -99,8 +99,8 @@ func TestRegenerateAPIKeyHandler_NewKeyValidatesAgainstAPIPackage(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read body: %v", err)
 	}
-	rawKey := betweenTags(t, string(body), "Key: <code>", "</code>")
-	rawSecret := betweenTags(t, string(body), "Secret: <code>", "</code>")
+	rawKey := betweenTags(t, string(body), `<span class="k">Key</span><span class="v mono">`, "</span>")
+	rawSecret := betweenTags(t, string(body), `<span class="k">Secret</span><span class="v mono">`, "</span>")
 
 	var dbSecret string
 	if err := pool.QueryRow(context.Background(), `SELECT secret FROM api_keys WHERE revoked_at IS NULL`).Scan(&dbSecret); err != nil {

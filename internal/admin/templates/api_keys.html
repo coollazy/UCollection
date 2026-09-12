@@ -5,25 +5,29 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>API Key 管理</h1>
-{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
-{{if .Notice}}<p style="color:blue">{{.Notice}}</p>{{end}}
+<div class="main-head"><div><h1>API Key 管理</h1></div></div>
+{{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
+{{if .Notice}}<div class="alert alert--info">{{.Notice}}</div>{{end}}
 
+<div class="card" style="margin-bottom:var(--sp5)">
 <form method="post" action="/admin/api-keys/regenerate" onsubmit="return confirm('重新產生會讓既有API串接立即失效，確定要繼續嗎？');">
-  <label>TOTP驗證碼 <input type="text" name="totp_code" inputmode="numeric" autocomplete="off" required></label>
-  <button type="submit">重新產生 API Key</button>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <button type="submit" class="btn btn--primary">重新產生 API Key</button>
 </form>
+</div>
 
-<table border="1" cellpadding="4">
+<div class="table-wrap">
+<table class="table">
   <tr><th>ID</th><th>建立時間</th><th>狀態</th></tr>
   {{range .Keys}}
   <tr>
     <td>{{.ID}}</td>
     <td>{{ts .CreatedAt}}</td>
-    <td>{{if .Revoked}}已作廢{{else}}使用中{{end}}</td>
+    <td><span class="pill {{if .Revoked}}pill--not-consolidated{{else}}pill--completed{{end}}">{{if .Revoked}}已作廢{{else}}使用中{{end}}</span></td>
   </tr>
   {{end}}
 </table>
+</div>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>

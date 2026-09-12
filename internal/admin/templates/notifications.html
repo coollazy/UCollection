@@ -5,36 +5,40 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>通知歷史</h1>
-{{if .Flash}}<p style="color:green">{{.Flash}}</p>{{end}}
-{{if .FlashError}}<p style="color:red">{{.FlashError}}</p>{{end}}
+<div class="main-head"><div><h1>通知歷史</h1></div></div>
+{{if .Flash}}<div class="alert alert--success">{{.Flash}}</div>{{end}}
+{{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
 
+<div class="card" style="margin-bottom:var(--sp5)">
 <form method="get">
-  <p>
-    <label>訂單ID <input type="number" name="order_id" value="{{if .Filter.OrderID}}{{.Filter.OrderID}}{{end}}"></label>
-    <label>event_type <input type="text" name="event_type" value="{{.Filter.EventType}}"></label>
-    <label>狀態
+  <div class="filters">
+    <div class="field"><span class="lbl">訂單ID</span><input type="number" name="order_id" value="{{if .Filter.OrderID}}{{.Filter.OrderID}}{{end}}"></div>
+    <div class="field"><span class="lbl">event_type</span><input type="text" name="event_type" value="{{.Filter.EventType}}"></div>
+    <div class="field">
+      <span class="lbl">狀態</span>
       <select name="status">
         <option value="">（全部）</option>
         {{range $s := $.AllStatuses}}
         <option value="{{$s}}" {{if eq $.Filter.Status $s}}selected{{end}}>{{$s}}</option>
         {{end}}
       </select>
-    </label>
-  </p>
-  <p><button type="submit">查詢</button></p>
+    </div>
+    <div class="field"><button type="submit" class="btn btn--primary">查詢</button></div>
+  </div>
 </form>
+</div>
 
-<p>共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</p>
+<div class="toolbar"><span class="muted">共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</span></div>
 
-<table border="1" cellpadding="4">
+<div class="table-wrap">
+<table class="table">
   <tr><th>ID</th><th>訂單ID</th><th>event_type</th><th>狀態</th><th>嘗試次數</th><th>下次重試</th><th>建立時間</th><th>逐次嘗試</th><th></th></tr>
   {{range .Deliveries}}
   <tr>
     <td>{{.ID}}</td>
     <td><a href="/admin/orders/{{.OrderID}}">{{.OrderID}}</a></td>
-    <td>{{.EventType}}</td>
-    <td>{{.Status}}</td>
+    <td class="mono">{{.EventType}}</td>
+    <td>{{pill .Status}}</td>
     <td>{{.AttemptCount}}</td>
     <td>{{ts .NextRetryAt}}</td>
     <td>{{ts .CreatedAt}}</td>
@@ -45,17 +49,18 @@
     </td>
     <td>
       <form method="post" action="/admin/notifications/{{.ID}}/resend">
-        <button type="submit">手動重發</button>
+        <button type="submit" class="btn btn--sm">手動重發</button>
       </form>
     </td>
   </tr>
   {{end}}
 </table>
+</div>
 
-<p>
-  {{if .HasPrev}}<a href="?page={{.PrevPage}}">上一頁</a>{{end}}
-  {{if .HasNext}}<a href="?page={{.NextPage}}">下一頁</a>{{end}}
-</p>
+<div class="pager">
+  {{if .HasPrev}}<a href="?page={{.PrevPage}}" class="btn btn--sm">上一頁</a>{{end}}
+  {{if .HasNext}}<a href="?page={{.NextPage}}" class="btn btn--sm">下一頁</a>{{end}}
+</div>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>

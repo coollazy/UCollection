@@ -5,13 +5,17 @@
 <div class="layout">
 {{template "nav" .}}
 <main class="main">
-<h1>新的 API Key 已產生</h1>
-<p style="color:red"><strong>請立即複製，離開此頁面後將不再以明碼顯示。</strong></p>
+<div class="main-head"><div><h1>新的 API Key 已產生</h1></div></div>
+<div class="alert alert--error"><strong>請立即複製，離開此頁面後將不再以明碼顯示。</strong></div>
 
-<p>Key: <code>{{.Key}}</code></p>
-<p>Secret: <code>{{.Secret}}</code></p>
+<div class="card">
+<div class="rows">
+  <div class="row"><span class="k">Key</span><span class="v mono">{{.Key}}</span></div>
+  <div class="row"><span class="k">Secret</span><span class="v mono">{{.Secret}}</span></div>
+</div>
+</div>
 
-<p><a href="/admin/api-keys">回 API Key 列表</a></p>
+<p style="margin-top:var(--sp5)"><a href="/admin/api-keys" class="btn">回 API Key 列表</a></p>
 </main>
 </div>
 </body>
