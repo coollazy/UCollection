@@ -128,9 +128,10 @@ export function initSignPage() {
         : 'TRX來源地址：' + page.fee_source_address + '（分類：' + page.fee_source + '）';
     els.itemsList.appendChild(summary);
 
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-wrap';
     const table = document.createElement('table');
-    table.setAttribute('border', '1');
-    table.setAttribute('cellpadding', '4');
+    table.className = 'table';
     const headerRow = document.createElement('tr');
     ['訂單ID', '地址', '狀態'].forEach((text) => {
       const th = document.createElement('th');
@@ -144,6 +145,7 @@ export function initSignPage() {
       const idCell = document.createElement('td');
       idCell.textContent = String(item.order_id);
       const addrCell = document.createElement('td');
+      addrCell.className = 'mono';
       addrCell.textContent = item.address;
       const statusCell = document.createElement('td');
       statusCell.id = 'item-status-' + item.order_id;
@@ -151,17 +153,20 @@ export function initSignPage() {
       row.append(idCell, addrCell, statusCell);
       table.appendChild(row);
     }
-    els.itemsList.appendChild(table);
+    tableWrap.appendChild(table);
+    els.itemsList.appendChild(tableWrap);
 
     if (page.type === 'fee-topup') {
-      const amountP = document.createElement('p');
-      const label = document.createElement('label');
-      label.append('每筆金額（TRX） ');
+      const amountP = document.createElement('div');
+      amountP.className = 'field';
+      amountP.style.marginTop = 'var(--sp3)';
+      const label = document.createElement('span');
+      label.className = 'lbl';
+      label.textContent = '每筆金額（TRX）';
       amountInput = document.createElement('input');
       amountInput.type = 'text';
       if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
-      label.appendChild(amountInput);
-      amountP.appendChild(label);
+      amountP.append(label, amountInput);
       els.itemsList.appendChild(amountP);
     }
   }
@@ -431,9 +436,10 @@ export function initSignPage() {
     summary.textContent = '目的地地址：' + page.destination_address + '　TRX來源：' + page.fee_source_address + '（分類：' + page.fee_source + '）';
     els.itemsList.appendChild(summary);
 
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-wrap';
     const table = document.createElement('table');
-    table.setAttribute('border', '1');
-    table.setAttribute('cellpadding', '4');
+    table.className = 'table';
     const headerRow = document.createElement('tr');
     ['訂單ID', '地址', 'USDT餘額', 'TRX餘額', '狀態'].forEach((text) => {
       const th = document.createElement('th');
@@ -447,10 +453,13 @@ export function initSignPage() {
       const idCell = document.createElement('td');
       idCell.textContent = String(item.order_id);
       const addrCell = document.createElement('td');
+      addrCell.className = 'mono';
       addrCell.textContent = item.address;
       const usdtCell = document.createElement('td');
+      usdtCell.className = 'num';
       usdtCell.textContent = sunToTrx(item.usdt_balance);
       const trxCell = document.createElement('td');
+      trxCell.className = 'num';
       trxCell.textContent = sunToTrx(item.trx_balance);
       const statusCell = document.createElement('td');
       statusCell.id = 'item-status-' + item.order_id;
@@ -461,12 +470,15 @@ export function initSignPage() {
       row.append(idCell, addrCell, usdtCell, trxCell, statusCell);
       table.appendChild(row);
     }
-    els.itemsList.appendChild(table);
+    tableWrap.appendChild(table);
+    els.itemsList.appendChild(tableWrap);
 
     // 每筆補充TRX金額由準備歸集頁自動試算好、隨query string帶過來——不在這裡
     // 讓商戶輸入（2026-09-11使用者拍板，取代先前需要手動抄「試算」結果的兩步驟）。
     // 純唯讀顯示供送出前核對，不是輸入框。
     const amountP = document.createElement('p');
+    amountP.className = 'muted';
+    amountP.style.marginTop = 'var(--sp3)';
     amountP.textContent =
       '每筆補充 TRX 金額（系統已自動試算）：首筆 ' + sunToTrx(page.first_amount_per_order) + ' TRX，其餘每筆 ' + sunToTrx(page.repeat_amount_per_order) + ' TRX';
     els.itemsList.appendChild(amountP);

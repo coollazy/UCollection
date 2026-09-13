@@ -70737,9 +70737,10 @@
       const summary = document.createElement("p");
       summary.textContent = page.type === "consolidation" ? "\u76EE\u7684\u5730\u5730\u5740\uFF1A" + page.destination_address : "TRX\u4F86\u6E90\u5730\u5740\uFF1A" + page.fee_source_address + "\uFF08\u5206\u985E\uFF1A" + page.fee_source + "\uFF09";
       els.itemsList.appendChild(summary);
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "table-wrap";
       const table = document.createElement("table");
-      table.setAttribute("border", "1");
-      table.setAttribute("cellpadding", "4");
+      table.className = "table";
       const headerRow = document.createElement("tr");
       ["\u8A02\u55AEID", "\u5730\u5740", "\u72C0\u614B"].forEach((text) => {
         const th = document.createElement("th");
@@ -70752,6 +70753,7 @@
         const idCell = document.createElement("td");
         idCell.textContent = String(item.order_id);
         const addrCell = document.createElement("td");
+        addrCell.className = "mono";
         addrCell.textContent = item.address;
         const statusCell = document.createElement("td");
         statusCell.id = "item-status-" + item.order_id;
@@ -70759,16 +70761,19 @@
         row.append(idCell, addrCell, statusCell);
         table.appendChild(row);
       }
-      els.itemsList.appendChild(table);
+      tableWrap.appendChild(table);
+      els.itemsList.appendChild(tableWrap);
       if (page.type === "fee-topup") {
-        const amountP = document.createElement("p");
-        const label = document.createElement("label");
-        label.append("\u6BCF\u7B46\u91D1\u984D\uFF08TRX\uFF09 ");
+        const amountP = document.createElement("div");
+        amountP.className = "field";
+        amountP.style.marginTop = "var(--sp3)";
+        const label = document.createElement("span");
+        label.className = "lbl";
+        label.textContent = "\u6BCF\u7B46\u91D1\u984D\uFF08TRX\uFF09";
         amountInput = document.createElement("input");
         amountInput.type = "text";
         if (page.default_amount_per_order) amountInput.value = sunToTrx(page.default_amount_per_order);
-        label.appendChild(amountInput);
-        amountP.appendChild(label);
+        amountP.append(label, amountInput);
         els.itemsList.appendChild(amountP);
       }
     }
@@ -70960,9 +70965,10 @@
       const summary = document.createElement("p");
       summary.textContent = "\u76EE\u7684\u5730\u5730\u5740\uFF1A" + page.destination_address + "\u3000TRX\u4F86\u6E90\uFF1A" + page.fee_source_address + "\uFF08\u5206\u985E\uFF1A" + page.fee_source + "\uFF09";
       els.itemsList.appendChild(summary);
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "table-wrap";
       const table = document.createElement("table");
-      table.setAttribute("border", "1");
-      table.setAttribute("cellpadding", "4");
+      table.className = "table";
       const headerRow = document.createElement("tr");
       ["\u8A02\u55AEID", "\u5730\u5740", "USDT\u9918\u984D", "TRX\u9918\u984D", "\u72C0\u614B"].forEach((text) => {
         const th = document.createElement("th");
@@ -70975,10 +70981,13 @@
         const idCell = document.createElement("td");
         idCell.textContent = String(item.order_id);
         const addrCell = document.createElement("td");
+        addrCell.className = "mono";
         addrCell.textContent = item.address;
         const usdtCell = document.createElement("td");
+        usdtCell.className = "num";
         usdtCell.textContent = sunToTrx(item.usdt_balance);
         const trxCell = document.createElement("td");
+        trxCell.className = "num";
         trxCell.textContent = sunToTrx(item.trx_balance);
         const statusCell = document.createElement("td");
         statusCell.id = "item-status-" + item.order_id;
@@ -70989,8 +70998,11 @@
         row.append(idCell, addrCell, usdtCell, trxCell, statusCell);
         table.appendChild(row);
       }
-      els.itemsList.appendChild(table);
+      tableWrap.appendChild(table);
+      els.itemsList.appendChild(tableWrap);
       const amountP = document.createElement("p");
+      amountP.className = "muted";
+      amountP.style.marginTop = "var(--sp3)";
       amountP.textContent = "\u6BCF\u7B46\u88DC\u5145 TRX \u91D1\u984D\uFF08\u7CFB\u7D71\u5DF2\u81EA\u52D5\u8A66\u7B97\uFF09\uFF1A\u9996\u7B46 " + sunToTrx(page.first_amount_per_order) + " TRX\uFF0C\u5176\u9918\u6BCF\u7B46 " + sunToTrx(page.repeat_amount_per_order) + " TRX";
       els.itemsList.appendChild(amountP);
     }
