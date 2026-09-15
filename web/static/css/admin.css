@@ -258,8 +258,10 @@ strong { color: var(--text); }
 .userbox { display: flex; align-items: center; gap: var(--sp2); color: var(--text-2); font-size: 13px; }
 
 @media (max-width: 900px) {
+  .layout { flex-direction: column; }
   .sidebar {
     position: static;
+    flex: none;
     width: 100%;
     height: auto;
     flex-direction: row;
