@@ -7,7 +7,8 @@ import (
 )
 
 type pendingWalletsPageData struct {
-	Wallets []masterWalletOption
+	ActiveWallets   []masterWalletOption
+	InactiveWallets []masterWalletOption
 }
 
 type pendingListPageData struct {
@@ -51,7 +52,15 @@ func pendingListPageHandler(deps Deps) http.HandlerFunc {
 				if err := ReconcileBroadcasting(ctx, deps, nil); err != nil {
 					log.Printf("consolidation: reconcile (all wallets) on page load: %v", err)
 				}
-				render(w, http.StatusOK, "consolidation_wallets.html", pendingWalletsPageData{Wallets: wallets})
+				var active, inactive []masterWalletOption
+				for _, wlt := range wallets {
+					if wlt.Status == "active" {
+						active = append(active, wlt)
+					} else {
+						inactive = append(inactive, wlt)
+					}
+				}
+				render(w, http.StatusOK, "consolidation_wallets.html", pendingWalletsPageData{ActiveWallets: active, InactiveWallets: inactive})
 				return
 			}
 		}

@@ -8,16 +8,29 @@
 {{template "nav" .}}
 <main class="main">
 <div class="main-head"><div><h1>手動歸集：選擇代收主錢包</h1></div></div>
-{{if not .Wallets}}
+{{if and (not .ActiveWallets) (not .InactiveWallets)}}
   <p class="muted">尚未設定代收主錢包。</p>
 {{else}}
-  <div class="card">
+  {{if .ActiveWallets}}
+  <div class="card" style="margin-bottom:var(--sp5)">
+  <h2 style="margin-top:0">使用中</h2>
   <div class="rows">
-  {{range .Wallets}}
+  {{range .ActiveWallets}}
     <div class="row"><a href="/admin/consolidation?master_wallet_id={{.ID}}">代收主錢包 #{{.ID}}</a><span class="v">{{pill .Status}}</span></div>
   {{end}}
   </div>
   </div>
+  {{end}}
+  {{if .InactiveWallets}}
+  <div class="card">
+  <h2 style="margin-top:0">已停用</h2>
+  <div class="rows">
+  {{range .InactiveWallets}}
+    <div class="row"><a href="/admin/consolidation?master_wallet_id={{.ID}}">代收主錢包 #{{.ID}}</a><span class="v">{{pill .Status}}</span></div>
+  {{end}}
+  </div>
+  </div>
+  {{end}}
 {{end}}
 </main>
 </div>
