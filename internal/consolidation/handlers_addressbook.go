@@ -21,9 +21,9 @@ type addressBookPageData struct {
 func totpReverifiedNotice(r *http.Request) string {
 	switch r.URL.Query().Get("totp_error") {
 	case "missing":
-		return "此操作需要輸入TOTP驗證碼，請重新填寫並送出"
+		return "此操作需要輸入兩步驟驗證碼，請重新填寫並送出"
 	case "invalid":
-		return "TOTP驗證碼錯誤，請重新填寫並送出"
+		return "兩步驟驗證碼錯誤，請重新填寫並送出"
 	case "replay":
 		return "此驗證碼已被使用，請等待新一組驗證碼後再試"
 	}

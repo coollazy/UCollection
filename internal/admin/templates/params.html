@@ -24,7 +24,7 @@
 <p class="muted">此設定會影響之後新訂單的短付/溢付判定範圍，變更前需要重新輸入驗證碼。</p>
 <form method="post" action="/admin/params/tolerance">
   <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">金額容許誤差百分比</span><input type="text" name="amount_tolerance_percent" value="{{if .AmountTolerancePercent}}{{.AmountTolerancePercent}}{{end}}" required></div>
-  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
   <button type="submit" class="btn btn--primary">更新</button>
 </form>
 </div>

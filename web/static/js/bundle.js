@@ -70678,7 +70678,7 @@
       body: JSON.stringify(body)
     });
     if (resp.redirected) {
-      throw new Error("TOTP\u9A57\u8B49\u78BC\u6709\u8AA4\u6216\u5DF2\u904E\u671F\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u9801\u9762\u3001\u91CD\u65B0\u8F38\u5165\u9A57\u8B49\u78BC\u5F8C\u518D\u8A66\u4E00\u6B21");
+      throw new Error("\u5169\u6B65\u9A5F\u9A57\u8B49\u78BC\u6709\u8AA4\u6216\u5DF2\u904E\u671F\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u9801\u9762\u3001\u91CD\u65B0\u8F38\u5165\u9A57\u8B49\u78BC\u5F8C\u518D\u8A66\u4E00\u6B21");
     }
     const data = await resp.json().catch(() => null);
     if (!resp.ok) {
@@ -70930,7 +70930,7 @@
     async function handleSignAndBroadcast() {
       const totpCode = els.totpCodeInput.value.trim();
       if (!totpCode) {
-        els.signStatus.textContent = "\u8ACB\u8F38\u5165TOTP\u9A57\u8B49\u78BC";
+        els.signStatus.textContent = "\u8ACB\u8F38\u5165\u5169\u6B65\u9A5F\u9A57\u8B49\u78BC";
         return;
       }
       pendingTOTPCode = totpCode;
@@ -71078,7 +71078,7 @@
     async function runCombinedFlow() {
       const totpCode = els.totpCodeInput.value.trim();
       if (!totpCode) {
-        els.signStatus.textContent = "\u8ACB\u8F38\u5165TOTP\u9A57\u8B49\u78BC";
+        els.signStatus.textContent = "\u8ACB\u8F38\u5165\u5169\u6B65\u9A5F\u9A57\u8B49\u78BC";
         return;
       }
       if (masterKeys.size === 0 || !feeSourceKey) {

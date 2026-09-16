@@ -13,7 +13,7 @@
 
 <div class="card" style="margin-bottom:var(--sp5)">
 <form method="post" action="/admin/api-keys/regenerate" onsubmit="return confirm('重新產生會讓既有API串接立即失效，確定要繼續嗎？');">
-  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
   <button type="submit" class="btn btn--primary">重新產生 API Key</button>
 </form>
 </div>

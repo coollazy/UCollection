@@ -34,9 +34,9 @@ func describeAuditLog(e auditLogEntryView) string {
 	case "TOTP_SETUP_FAILED":
 		return fmt.Sprintf("兩步驟驗證（TOTP）設定失敗，驗證碼錯誤（IP：%s）", detailStr(d, "ip"))
 	case "TOTP_VERIFY_SUCCESS":
-		return fmt.Sprintf("登入時TOTP驗證碼驗證成功（IP：%s）", detailStr(d, "ip"))
+		return fmt.Sprintf("登入時兩步驟驗證碼驗證成功（IP：%s）", detailStr(d, "ip"))
 	case "TOTP_VERIFY_FAILED":
-		return fmt.Sprintf("登入時TOTP驗證碼錯誤（IP：%s）", detailStr(d, "ip"))
+		return fmt.Sprintf("登入時兩步驟驗證碼錯誤（IP：%s）", detailStr(d, "ip"))
 	case "TOTP_STEPUP_SUCCESS":
 		return fmt.Sprintf("高風險操作前的TOTP驗證成功（IP：%s）", detailStr(d, "ip"))
 	case "TOTP_STEPUP_FAILED":

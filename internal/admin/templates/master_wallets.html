@@ -27,7 +27,7 @@
     <td>
       {{if eq .Status "inactive"}}
       <form method="post" action="/admin/master-wallets/{{.ID}}/reactivate" onsubmit="return confirm('確定要將此代收主錢包恢復使用中嗎？目前使用中的代收主錢包將轉為已停用。');">
-        <div class="field" style="margin-bottom:var(--sp2)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+        <div class="field" style="margin-bottom:var(--sp2)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
         <button type="submit" class="btn btn--sm">恢復使用中</button>
       </form>
       {{end}}

@@ -18,7 +18,7 @@
 <h2 style="margin-top:0">URL</h2>
 <form method="post" action="/admin/webhook-config">
   <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">Webhook URL</span><input type="text" name="webhook_url" value="{{.URL}}" placeholder="https://..."></div>
-  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
   <button type="submit" class="btn btn--primary">更新 URL</button>
 </form>
 </div>
@@ -31,7 +31,7 @@
     <label><input type="radio" name="mode" value="generate" checked> 系統產生</label>
     <label><input type="radio" name="mode" value="manual"> 手動輸入 <input type="text" name="secret"></label>
   </div>
-  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
   <button type="submit" class="btn btn--danger" onclick="return confirm('輪替secret沒有過渡期，請確認已準備好同步更新驗簽端設定。');">更新 Secret</button>
 </form>
 </div>

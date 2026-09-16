@@ -47,7 +47,7 @@ async function postJSON(url, body, totpCode) {
   // expired) rather than the handler running — see auth.RequireTOTPCode's
   // doc comment. Its body is the returnTo page's HTML, not JSON.
   if (resp.redirected) {
-    throw new Error('TOTP驗證碼有誤或已過期，請重新整理頁面、重新輸入驗證碼後再試一次');
+    throw new Error('兩步驟驗證碼有誤或已過期，請重新整理頁面、重新輸入驗證碼後再試一次');
   }
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {
@@ -387,7 +387,7 @@ export function initSignPage() {
   async function handleSignAndBroadcast() {
     const totpCode = els.totpCodeInput.value.trim();
     if (!totpCode) {
-      els.signStatus.textContent = '請輸入TOTP驗證碼';
+      els.signStatus.textContent = '請輸入兩步驟驗證碼';
       return;
     }
     pendingTOTPCode = totpCode;
@@ -577,7 +577,7 @@ export function initSignPage() {
   async function runCombinedFlow() {
     const totpCode = els.totpCodeInput.value.trim();
     if (!totpCode) {
-      els.signStatus.textContent = '請輸入TOTP驗證碼';
+      els.signStatus.textContent = '請輸入兩步驟驗證碼';
       return;
     }
     if (masterKeys.size === 0 || !feeSourceKey) {

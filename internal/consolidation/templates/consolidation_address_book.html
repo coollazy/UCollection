@@ -22,7 +22,7 @@
         <input type="hidden" name="id" value="{{.ID}}">
         <input type="hidden" name="address" value="{{.Address}}">
         <input type="text" name="label" value="{{.Label}}">
-        <input type="text" name="totp_code" class="input--code" placeholder="TOTP驗證碼" inputmode="numeric" autocomplete="off" required>
+        <input type="text" name="totp_code" class="input--code" placeholder="兩步驟驗證碼" inputmode="numeric" autocomplete="off" required>
         <button type="submit" class="btn btn--sm">改名</button>
       </form>
     </td>
@@ -39,7 +39,7 @@
   <input type="hidden" name="id" value="">
   <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">地址</span><input type="text" name="address" required></div>
   <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">名稱</span><input type="text" name="label" required></div>
-  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
+  <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">兩步驟驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
   <button type="submit" class="btn btn--primary">新增</button>
 </form>
 </div>
