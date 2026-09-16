@@ -12,6 +12,8 @@
 <div class="alert alert--error"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong><br><span class="mono">{{.GeneratedSecret}}</span></div>
 {{end}}
 
+<div class="alert alert--info">系統目前僅支援單一組 Webhook 端點設定：只有一個 URL、一組 secret，所有訂單終態通知都推送到這裡，不支援針對不同事件或下游系統分別設定多組端點。</div>
+
 <div class="card" style="margin-bottom:var(--sp5)">
 <h2 style="margin-top:0">URL</h2>
 <form method="post" action="/admin/webhook-config">

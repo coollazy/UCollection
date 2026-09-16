@@ -9,6 +9,8 @@
 {{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
 {{if .Notice}}<div class="alert alert--info">{{.Notice}}</div>{{end}}
 
+<div class="alert alert--info">系統目前僅支援單一組 API Key：同一時間只有一組使用中，沒有分別建立多組、各自管理/輪替的機制。按「重新產生」會讓現有的那組立即失效，所有透過 API 串接的下游系統都要一起改用新 Key。</div>
+
 <div class="card" style="margin-bottom:var(--sp5)">
 <form method="post" action="/admin/api-keys/regenerate" onsubmit="return confirm('重新產生會讓既有API串接立即失效，確定要繼續嗎？');">
   <div class="field" style="margin-bottom:var(--sp3)"><span class="lbl">TOTP驗證碼</span><input type="text" name="totp_code" class="input--code" inputmode="numeric" autocomplete="off" required></div>
