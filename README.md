@@ -4,6 +4,8 @@
 
 規則與架構見 [CLAUDE.md](CLAUDE.md)、[技術架構設計](docs/開發流程框架-03-技術架構設計.md)、[ADR](docs/adr/README.md)。目前進度見 [docs/進度.md](docs/進度.md)。
 
+商戶自架部署（拿到系統 image、非開發用途）請直接看 [docs/部署文件.md](docs/部署文件.md)。下面的快速開始是開發者從原始碼本機起一份供開發用的版本。
+
 ## 快速開始
 
 ```bash
