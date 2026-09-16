@@ -564,6 +564,7 @@ input::placeholder { color: var(--text-muted); }
 .auth-brand .sub { color: var(--text-2); font-size: 13px; }
 
 .auth .field { margin-bottom: var(--sp4); }
+.auth .input--code { max-width: none; }
 
 .auth .btn--primary {
   width: 100%;
