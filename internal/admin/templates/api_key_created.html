@@ -10,12 +10,13 @@
 
 <div class="card">
 <div class="rows">
-  <div class="row"><span class="k">Key</span><span class="v mono">{{.Key}}</span></div>
-  <div class="row"><span class="k">Secret</span><span class="v mono">{{.Secret}}</span></div>
+  <div class="row"><span class="k">Key</span><span class="v mono" id="apikey-key">{{.Key}}</span><button type="button" class="btn btn--sm" onclick="copyToClipboard(document.getElementById('apikey-key').textContent, this)">複製</button></div>
+  <div class="row"><span class="k">Secret</span><span class="v mono" id="apikey-secret">{{.Secret}}</span><button type="button" class="btn btn--sm" onclick="copyToClipboard(document.getElementById('apikey-secret').textContent, this)">複製</button></div>
 </div>
 </div>
 
 <p style="margin-top:var(--sp5)"><a href="/admin/api-keys" class="btn">回 API Key 列表</a></p>
+<script src="/static/js/admin.js"></script>
 </main>
 </div>
 </body>

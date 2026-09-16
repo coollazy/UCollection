@@ -29,6 +29,42 @@ function deleteAddressBookEntry(id) {
     });
 }
 
+// copyToClipboard copies `text` to the clipboard and briefly flashes a
+// confirmation on the triggering button. navigator.clipboard requires a
+// secure context (HTTPS or localhost) — ADR-0004（不內建反向代理/TLS終止）意味著
+// 商戶可能直接以純HTTP方式跑後台，所以在Clipboard API不可用時退回舊式
+// execCommand('copy') hidden-textarea寫法。
+function copyToClipboard(text, btn) {
+  function flash(ok) {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = ok ? '已複製' : '複製失敗';
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1500);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => flash(true),
+      () => flash(false)
+    );
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    flash(true);
+  } catch (e) {
+    flash(false);
+  }
+  document.body.removeChild(ta);
+}
+
 // deleteFeeSourceBookEntry is deleteAddressBookEntry's counterpart for the
 // 手續費來源地址簿 (需求書5.9 v0.39) — same DELETE-via-fetch mechanism, just a
 // different endpoint. The two address books are two independent lists.

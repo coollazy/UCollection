@@ -9,7 +9,7 @@
 {{if .FlashError}}<div class="alert alert--error">{{.FlashError}}</div>{{end}}
 {{if .FlashSuccess}}<div class="alert alert--success">{{.FlashSuccess}}</div>{{end}}
 {{if .GeneratedSecret}}
-<div class="alert alert--error"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong><br><span class="mono">{{.GeneratedSecret}}</span></div>
+<div class="alert alert--error"><strong>新的 webhook secret 已產生，請立即複製，離開此頁面後將不再以明碼顯示：</strong><br><span class="mono" id="webhook-generated-secret">{{.GeneratedSecret}}</span> <button type="button" class="btn btn--sm" onclick="copyToClipboard(document.getElementById('webhook-generated-secret').textContent, this)">複製</button></div>
 {{end}}
 
 <div class="alert alert--info">系統目前僅支援單一組 Webhook 端點設定：只有一個 URL、一組 secret，所有訂單終態通知都推送到這裡，不支援針對不同事件或下游系統分別設定多組端點。</div>
@@ -25,7 +25,7 @@
 
 <div class="card" style="margin-bottom:var(--sp5)">
 <h2 style="margin-top:0">Secret</h2>
-<p class="muted">目前狀態：{{if .SecretConfigured}}已設定{{else}}未設定{{end}}</p>
+<p class="muted">目前狀態：{{if .SecretConfigured}}已設定（<span class="mono">{{.SecretHint}}</span>）{{else}}未設定{{end}}</p>
 <form method="post" action="/admin/webhook-config/secret">
   <div class="field" style="margin-bottom:var(--sp3)">
     <label><input type="radio" name="mode" value="generate" checked> 系統產生</label>
@@ -54,6 +54,7 @@
 </div>
 {{end}}
 </div>
+<script src="/static/js/admin.js"></script>
 </main>
 </div>
 </body>

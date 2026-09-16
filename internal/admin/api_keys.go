@@ -3,6 +3,7 @@ package admin
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
@@ -12,9 +13,11 @@ import (
 )
 
 type apiKeyRow struct {
-	ID        int64
-	CreatedAt time.Time
-	Revoked   bool
+	ID         int64
+	CreatedAt  time.Time
+	Revoked    bool
+	KeyHint    sql.NullString
+	SecretHint string
 }
 
 type apiKeysListPageData struct {
@@ -24,11 +27,12 @@ type apiKeysListPageData struct {
 }
 
 // apiKeysListHandler implements GET /admin/api-keys (技術架構設計第11節「API Key
-// 管理」列表：不明碼顯示key/secret，僅顯示建立時間、狀態).
+// 管理」列表：不常態明碼顯示key/secret，僅顯示建立時間、狀態、前4+後4碼識別片段
+// （key_hint/secret的hint現算，見docs/adr/0019）).
 func apiKeysListHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := deps.Pool.Query(r.Context(), `
-			SELECT id, created_at, revoked_at IS NOT NULL FROM api_keys ORDER BY created_at DESC
+			SELECT id, created_at, revoked_at IS NOT NULL, key_hint, secret FROM api_keys ORDER BY created_at DESC
 		`)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -39,10 +43,12 @@ func apiKeysListHandler(deps Deps) http.HandlerFunc {
 		var keys []apiKeyRow
 		for rows.Next() {
 			var k apiKeyRow
-			if err := rows.Scan(&k.ID, &k.CreatedAt, &k.Revoked); err != nil {
+			var secret string
+			if err := rows.Scan(&k.ID, &k.CreatedAt, &k.Revoked, &k.KeyHint, &secret); err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
+			k.SecretHint = keyHint(secret)
 			keys = append(keys, k)
 		}
 		if err := rows.Err(); err != nil {
@@ -94,8 +100,8 @@ func regenerateAPIKeyHandler(deps Deps) http.HandlerFunc {
 		}
 		var newID int64
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO api_keys (key_hash, secret) VALUES ($1, $2) RETURNING id
-		`, keyHash, secret).Scan(&newID); err != nil {
+			INSERT INTO api_keys (key_hash, key_hint, secret) VALUES ($1, $2, $3) RETURNING id
+		`, keyHash, keyHint(key), secret).Scan(&newID); err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
@@ -121,4 +127,20 @@ func randomAPIKeyMaterial() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+// keyHint returns a "front4...back4" identification snippet for API
+// key/secret material — plaintext, but only 8 of the 43 random characters,
+// not enough to reconstruct the full value (見 docs/adr/0019、CLAUDE.md安全
+// 鐵律8). Used both for the stored api_keys.key_hint column (key's plaintext
+// is unrecoverable after creation) and computed on the fly for api_keys.secret
+// / system_params.webhook_secret (already stored plaintext per ADR-0010, so
+// no extra column needed there). Webhook secret allows manual input and may
+// be shorter than 8 chars — returned as-is in that case, which reveals no
+// more than what's already sitting in the DB in plaintext.
+func keyHint(s string) string {
+	if len(s) <= 8 {
+		return s
+	}
+	return s[:4] + "..." + s[len(s)-4:]
 }

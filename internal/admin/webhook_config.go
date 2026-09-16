@@ -21,6 +21,7 @@ type testPingResult struct {
 type webhookConfigPageData struct {
 	URL              string
 	SecretConfigured bool
+	SecretHint       string // front4...back4，現算自已明碼存的webhook_secret（見docs/adr/0019）
 	FlashError       string
 	FlashSuccess     string
 	TestResult       *testPingResult
@@ -52,12 +53,15 @@ func loadWebhookConfigPage(w http.ResponseWriter, r *http.Request, deps Deps, ex
 		data.URL = *u
 	}
 	data.SecretConfigured = s != nil && *s != ""
+	if data.SecretConfigured {
+		data.SecretHint = keyHint(*s)
+	}
 	render(w, http.StatusOK, "webhook_config.html", data)
 }
 
 // webhookConfigPageHandler implements GET /admin/webhook-config (技術架構設計
-// 第11節「Webhook 端點設定」：查看目前設定，webhook_secret不明碼顯示，只顯示是否已
-// 設定).
+// 第11節「Webhook 端點設定」：查看目前設定，webhook_secret不常態明碼顯示，只顯示
+// 是否已設定＋前4後4碼識別片段).
 func webhookConfigPageHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()

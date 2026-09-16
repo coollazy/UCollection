@@ -60,6 +60,14 @@ func TestRegenerateAPIKeyHandler_Success(t *testing.T) {
 		t.Errorf("active api_keys count = %d, want 1", newKeyCount)
 	}
 
+	var newKeyHint string
+	if err := pool.QueryRow(context.Background(), `SELECT key_hint FROM api_keys WHERE revoked_at IS NULL`).Scan(&newKeyHint); err != nil {
+		t.Fatalf("query new key_hint: %v", err)
+	}
+	if newKeyHint == "" {
+		t.Error("new key's key_hint is empty, want a front4...back4 snippet")
+	}
+
 	var auditCount int
 	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_logs WHERE action_type = 'API_KEY_REGENERATED'`).Scan(&auditCount); err != nil {
 		t.Fatalf("count audit_logs: %v", err)
@@ -99,8 +107,8 @@ func TestRegenerateAPIKeyHandler_NewKeyValidatesAgainstAPIPackage(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read body: %v", err)
 	}
-	rawKey := betweenTags(t, string(body), `<span class="k">Key</span><span class="v mono">`, "</span>")
-	rawSecret := betweenTags(t, string(body), `<span class="k">Secret</span><span class="v mono">`, "</span>")
+	rawKey := betweenTags(t, string(body), `<span class="k">Key</span><span class="v mono" id="apikey-key">`, "</span>")
+	rawSecret := betweenTags(t, string(body), `<span class="k">Secret</span><span class="v mono" id="apikey-secret">`, "</span>")
 
 	var dbSecret string
 	if err := pool.QueryRow(context.Background(), `SELECT secret FROM api_keys WHERE revoked_at IS NULL`).Scan(&dbSecret); err != nil {
@@ -108,6 +116,15 @@ func TestRegenerateAPIKeyHandler_NewKeyValidatesAgainstAPIPackage(t *testing.T) 
 	}
 	if rawSecret != dbSecret {
 		t.Fatalf("secret extracted from HTML (%q) does not match DB (%q)", rawSecret, dbSecret)
+	}
+
+	var dbKeyHint string
+	if err := pool.QueryRow(context.Background(), `SELECT key_hint FROM api_keys WHERE revoked_at IS NULL`).Scan(&dbKeyHint); err != nil {
+		t.Fatalf("query new key_hint: %v", err)
+	}
+	wantHint := rawKey[:4] + "..." + rawKey[len(rawKey)-4:]
+	if dbKeyHint != wantHint {
+		t.Errorf("key_hint = %q, want %q (front4+back4 of raw key %q)", dbKeyHint, wantHint, rawKey)
 	}
 
 	apiSrv := httptest.NewServer(api.NewMux(pool, "https://admin.example"))
@@ -143,6 +160,26 @@ func TestRegenerateAPIKeyHandler_NewKeyValidatesAgainstAPIPackage(t *testing.T) 
 	}
 	if apiResp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404 ORDER_NOT_FOUND (order 1 doesn't exist, but auth must have passed)", apiResp.StatusCode)
+	}
+}
+
+func TestKeyHint(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"typical 43-char base64url key", "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abc", "AbCd..._abc"},
+		{"exactly 8 chars returned as-is", "abcdefgh", "abcdefgh"},
+		{"shorter than 8 chars returned as-is", "short", "short"},
+		{"empty string", "", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := keyHint(c.in); got != c.want {
+				t.Errorf("keyHint(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
 	}
 }
 
