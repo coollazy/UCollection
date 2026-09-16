@@ -57,10 +57,17 @@
 </table>
 </div>
 
-<div class="pager">
-  {{if .HasPrev}}<a href="?page={{.PrevPage}}" class="btn btn--sm">上一頁</a>{{end}}
-  {{if .HasNext}}<a href="?page={{.NextPage}}" class="btn btn--sm">下一頁</a>{{end}}
-</div>
+<form method="get">
+  <input type="hidden" name="order_id" value="{{if .Filter.OrderID}}{{.Filter.OrderID}}{{end}}">
+  <input type="hidden" name="event_type" value="{{.Filter.EventType}}">
+  <input type="hidden" name="status" value="{{.Filter.Status}}">
+  <div class="pager">
+  {{if .HasPrev}}<button type="submit" class="btn btn--sm" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
+  <input type="number" name="goto_page" min="1" max="{{.TotalPages}}" placeholder="頁碼" style="max-width:70px">
+  <button type="submit" class="btn btn--sm">跳至</button>
+  {{if .HasNext}}<button type="submit" class="btn btn--sm" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
+  </div>
+</form>
 <script src="/static/js/localtime.js"></script>
 </main>
 </div>

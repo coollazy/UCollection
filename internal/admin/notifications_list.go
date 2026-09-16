@@ -34,10 +34,7 @@ func notificationsListHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
-		page := 1
-		if p, err := strconv.Atoi(q.Get("page")); err == nil && p > 0 {
-			page = p
-		}
+		page := parsePage(q)
 
 		f := webhook.ListFilter{
 			EventType: q.Get("event_type"),

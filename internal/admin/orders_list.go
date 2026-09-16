@@ -2,7 +2,6 @@ package admin
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/coollazy/UCollection/internal/order"
 )
@@ -39,10 +38,7 @@ func ordersListHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
-		page := 1
-		if p, err := strconv.Atoi(q.Get("page")); err == nil && p > 0 {
-			page = p
-		}
+		page := parsePage(q)
 
 		f := parseOrderListFilter(r)
 		f.Offset = (page - 1) * ordersPageSize

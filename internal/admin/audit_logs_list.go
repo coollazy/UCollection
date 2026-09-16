@@ -2,7 +2,6 @@ package admin
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/coollazy/UCollection/internal/audit"
@@ -30,6 +29,13 @@ type auditLogsListPageData struct {
 	NextPage   int
 	HasPrev    bool
 	HasNext    bool
+
+	// Raw*：保留使用者輸入的原始 query 字串，供pager表單的hidden欄位帶出，
+	// 翻頁/跳頁時不遺失目前的時間篩選（比照orders_list.go的RawCreatedFrom/
+	// RawCreatedTo，理由相同：CreatedTo在這裡被+24h、且*time.Time無法直接
+	// 填回<input type="date">）。
+	RawCreatedFrom string
+	RawCreatedTo   string
 }
 
 // auditLogsListHandler implements GET /admin/audit-logs (技術架構設計第11節
@@ -39,10 +45,7 @@ func auditLogsListHandler(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
-		page := 1
-		if p, err := strconv.Atoi(q.Get("page")); err == nil && p > 0 {
-			page = p
-		}
+		page := parsePage(q)
 
 		f := audit.Filter{
 			Actor:      q.Get("actor"),
@@ -88,6 +91,9 @@ func auditLogsListHandler(deps Deps) http.HandlerFunc {
 			NextPage:   page + 1,
 			HasPrev:    page > 1,
 			HasNext:    page < totalPages,
+
+			RawCreatedFrom: q.Get("created_from"),
+			RawCreatedTo:   q.Get("created_to"),
 		})
 	}
 }

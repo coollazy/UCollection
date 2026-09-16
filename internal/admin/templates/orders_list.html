@@ -71,6 +71,8 @@
   <input type="hidden" name="created_to" value="{{.RawCreatedTo}}">
   <div class="pager">
   {{if .HasPrev}}<button type="submit" class="btn btn--sm" name="page" value="{{.PrevPage}}">上一頁</button>{{end}}
+  <input type="number" name="goto_page" min="1" max="{{.TotalPages}}" placeholder="頁碼" style="max-width:70px">
+  <button type="submit" class="btn btn--sm">跳至</button>
   {{if .HasNext}}<button type="submit" class="btn btn--sm" name="page" value="{{.NextPage}}">下一頁</button>{{end}}
   </div>
 </form>
