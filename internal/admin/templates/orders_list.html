@@ -22,12 +22,27 @@
     <div class="field"><span class="lbl">merchant_order_no（模糊比對）</span><input type="text" name="merchant_order_no" value="{{.Filter.MerchantOrderNo}}"></div>
     <div class="field"><span class="lbl">地址（精確比對）</span><input type="text" name="address" value="{{.Filter.Address}}"></div>
     <div class="field"><span class="lbl">代收主錢包ID</span><input type="number" name="master_wallet_id" value="{{.RawMasterWalletID}}"></div>
-    <div class="field"><span class="lbl">建立時間從</span><input type="date" name="created_from" value="{{.RawCreatedFrom}}"></div>
-    <div class="field"><span class="lbl">到</span><input type="date" name="created_to" value="{{.RawCreatedTo}}"></div>
     <div class="field"><button type="submit" class="btn btn--primary">查詢</button></div>
+    <div class="field"><a href="/admin/orders" class="btn">重置</a></div>
+  </div>
+  <div class="filters" style="margin-top:var(--sp4)">
+    <div class="field"><span class="lbl">建立時間從</span><input type="date" name="created_from" id="created-from" value="{{.RawCreatedFrom}}"></div>
+    <div class="field"><span class="lbl">到</span><input type="date" name="created_to" id="created-to" value="{{.RawCreatedTo}}"></div>
+    <div class="field">
+      <span class="lbl">快速區間</span>
+      <div class="chips">
+        <button type="button" class="btn btn--sm" data-date-range="today">今天</button>
+        <button type="button" class="btn btn--sm" data-date-range="yesterday">昨天</button>
+        <button type="button" class="btn btn--sm" data-date-range="last7">近7天</button>
+        <button type="button" class="btn btn--sm" data-date-range="last30">近30天</button>
+        <button type="button" class="btn btn--sm" data-date-range="this-month">本月</button>
+        <button type="button" class="btn btn--sm" data-date-range="last-month">上月</button>
+      </div>
+    </div>
   </div>
 </form>
 </div>
+<script src="/static/js/date-range-shortcuts.js"></script>
 
 <div class="toolbar"><span class="muted">共 {{.Total}} 筆，第 {{.Page}} / {{.TotalPages}} 頁</span></div>
 
