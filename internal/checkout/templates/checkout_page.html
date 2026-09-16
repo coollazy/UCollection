@@ -5,24 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>USDT 付款 - UCollection</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
-<main>
-  <h1>USDT 付款</h1>
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,2 28,8.5 28,23.5 16,30 4,23.5 4,8.5" fill="none" stroke="#2DD4A7" stroke-width="2"/><path d="M11.5 11v6a4.5 4.5 0 0 0 9 0v-6" fill="none" stroke="#2DD4A7" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <div class="name">UCollection</div>
+      <div class="sub">USDT 付款</div>
+    </div>
 
-  <p>應付金額：<strong>{{amt .TargetAmount}} USDT</strong></p>
+    <div class="checkout-amount">
+      <div class="label">應付金額</div>
+      <div class="value">{{amt .TargetAmount}}<span class="unit">USDT</span></div>
+    </div>
 
-  {{if .QRDataURI}}
-  <p><img src="{{.QRDataURI}}" alt="收款地址 QR Code" width="256" height="256"></p>
-  {{end}}
+    {{if .QRDataURI}}
+    <div class="checkout-qr">
+      <img src="{{.QRDataURI}}" alt="收款地址 QR Code" width="256" height="256">
+    </div>
+    {{end}}
 
-  <p>收款地址（USDT-TRC20）：</p>
-  <p><code>{{.Address}}</code></p>
+    <div class="checkout-address">
+      <div class="lbl">收款地址（USDT-TRC20）</div>
+      <div class="addr-row">
+        <code>{{.Address}}</code>
+        <button type="button" class="btn btn--sm" data-copy-address>複製</button>
+      </div>
+    </div>
 
-  <p>請使用支援 TRC20 的錢包掃描上方 QR Code，或複製收款地址，轉入所示金額的 USDT。QR Code 僅含收款地址，金額請自行核對後輸入。</p>
+    <p class="checkout-hint">請使用支援 TRC20 的錢包掃描上方 QR Code，或複製收款地址，轉入所示金額的 USDT。QR Code 僅含收款地址，金額請自行核對後輸入。</p>
 
-  {{template "status_region" .}}
-</main>
+    {{template "status_region" .}}
+  </div>
+</div>
 <script src="/static/js/checkout.js"></script>
 </body>
 </html>

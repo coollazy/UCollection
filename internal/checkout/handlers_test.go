@@ -46,7 +46,7 @@ func TestPage_Pending(t *testing.T) {
 	wantContains := []string{
 		"data:image/png;base64,", // QR as data URI
 		o.Address,                // receiving address
-		"100 USDT",               // target amount only
+		`class="value">100<`,     // target amount only (checkout-amount .value, see admin.css §14)
 		`data-countdown="true"`,
 		`data-terminal="false"`,
 		`data-status-url="/checkout/` + o.PublicToken + `/status"`,

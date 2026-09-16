@@ -113,3 +113,49 @@
 
   start();
 })();
+
+// 複製收款地址按鈕。CSP 對這頁是 script-src 'self'（無 unsafe-inline，見
+// setCheckoutHeaders），不能用 inline onclick，所以在這裡用 addEventListener
+// 綁定。獨立 IIFE、跟上面輪詢/倒數邏輯無關，只在頁面載入時綁一次即可——這顆
+// 按鈕在 #status-region 之外，不會隨輪詢被 outerHTML 換掉。複製邏輯跟
+// admin.js 的 copyToClipboard 相同（clipboard API 優先，不可用時退回
+// execCommand('copy') hidden-textarea 寫法，見 ADR-0004 不內建 TLS，商戶可能
+// 直接跑純 HTTP），這裡另外寫一份而非依賴 admin.js，讓 internal/checkout 這
+// 個模組維持零跨 package JS 依賴。
+(function () {
+  var btn = document.querySelector('[data-copy-address]');
+  var codeEl = document.querySelector('.checkout-address code');
+  if (!btn || !codeEl) return;
+
+  function flash(ok) {
+    var original = btn.textContent;
+    btn.textContent = ok ? '已複製' : '複製失敗';
+    setTimeout(function () {
+      btn.textContent = original;
+    }, 1500);
+  }
+
+  btn.addEventListener('click', function () {
+    var text = codeEl.textContent;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(
+        function () { flash(true); },
+        function () { flash(false); }
+      );
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      flash(true);
+    } catch (e) {
+      flash(false);
+    }
+    document.body.removeChild(ta);
+  });
+})();
