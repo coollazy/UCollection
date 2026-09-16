@@ -46,8 +46,11 @@ type createMasterWalletResponse struct {
 const maxXpubLen = 512
 
 // createMasterWalletHandler implements POST /admin/master-wallets (技術架構設計
-// 第11節「新增」: 後端收到xpub後比對重複、不重複則新增一筆status='active'、
-// last_derived_index=0，同一transaction內把原本使用中的那筆改為inactive). The
+// 第11節「新增」: 後端收到xpub後比對重複、不重複則新增一筆last_derived_index=0
+// 的紀錄；新紀錄的status視當下是否已有使用中的代收主錢包而定——沒有的話（首次
+// 設定、或既有的都已停用）新紀錄自動設為active，讓系統隨時都有一個可用的導引
+// Gate（見internal/order/masterwallet.go）；已有使用中的則新紀錄設為inactive，
+// 不再自動把既有那筆轉為停用，商戶要切換過去需另外按「恢復使用中」). The
 // browser sends xpub as JSON (fetch, not a native form — see
 // masterWalletNewCSPHeader's comment on why), so this responds with JSON
 // too rather than a 303 redirect.
@@ -81,14 +84,19 @@ func createMasterWalletHandler(deps Deps) http.HandlerFunc {
 			return
 		}
 
-		if _, err := tx.Exec(ctx, `UPDATE master_wallets SET status = 'inactive' WHERE status = 'active'`); err != nil {
+		var hasActive bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM master_wallets WHERE status = 'active')`).Scan(&hasActive); err != nil {
 			writeJSON(w, http.StatusInternalServerError, createMasterWalletResponse{OK: false, Error: "internal_error"})
 			return
 		}
+		newStatus := "inactive"
+		if !hasActive {
+			newStatus = "active"
+		}
 		var newID int64
 		err = tx.QueryRow(ctx, `
-			INSERT INTO master_wallets (xpub, status, last_derived_index) VALUES ($1, 'active', 0) RETURNING id
-		`, req.Xpub).Scan(&newID)
+			INSERT INTO master_wallets (xpub, status, last_derived_index) VALUES ($1, $2, 0) RETURNING id
+		`, req.Xpub, newStatus).Scan(&newID)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, createMasterWalletResponse{OK: false, Error: "internal_error"})
 			return

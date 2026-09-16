@@ -53,7 +53,12 @@ func TestMasterWalletNewPageHandler_SetsStrictCSP(t *testing.T) {
 	}
 }
 
-func TestCreateMasterWalletHandler_Success(t *testing.T) {
+// TestCreateMasterWalletHandler_ExistingActiveWallet_NewOneCreatedInactive
+// 新增代收主錢包不再自動把既有使用中的那筆切成停用（使用者拍板：只有「目前
+// 沒有任何使用中錢包」時新紀錄才自動active，避免系統沒有導引Gate可用；已有
+// 使用中錢包時，新紀錄以inactive新增，既有那筆維持不動，商戶要切換過去需
+// 另外按「恢復使用中」）。
+func TestCreateMasterWalletHandler_ExistingActiveWallet_NewOneCreatedInactive(t *testing.T) {
 	pool := testPool(t)
 	resetDB(t, pool)
 	existingID := newMasterWallet(t, pool) // active, testXpub
@@ -91,15 +96,15 @@ func TestCreateMasterWalletHandler_Success(t *testing.T) {
 	if err := pool.QueryRow(context.Background(), `SELECT status FROM master_wallets WHERE id = $1`, existingID).Scan(&oldStatus); err != nil {
 		t.Fatalf("query old wallet: %v", err)
 	}
-	if oldStatus != "inactive" {
-		t.Errorf("old wallet status = %q, want inactive", oldStatus)
+	if oldStatus != "active" {
+		t.Errorf("old wallet status = %q, want unchanged active", oldStatus)
 	}
 	var newLastDerivedIndex int64
 	if err := pool.QueryRow(context.Background(), `SELECT status, last_derived_index FROM master_wallets WHERE xpub = $1`, secondTestXpub).Scan(&newStatus, &newLastDerivedIndex); err != nil {
 		t.Fatalf("query new wallet: %v", err)
 	}
-	if newStatus != "active" {
-		t.Errorf("new wallet status = %q, want active", newStatus)
+	if newStatus != "inactive" {
+		t.Errorf("new wallet status = %q, want inactive", newStatus)
 	}
 	if newLastDerivedIndex != 0 {
 		t.Errorf("new wallet last_derived_index = %d, want 0", newLastDerivedIndex)
@@ -111,6 +116,45 @@ func TestCreateMasterWalletHandler_Success(t *testing.T) {
 	}
 	if auditCount != 1 {
 		t.Errorf("MASTER_WALLET_CREATED audit_logs count = %d, want 1", auditCount)
+	}
+}
+
+// TestCreateMasterWalletHandler_NoExistingActiveWallet_NewOneAutoActivates
+// 涵蓋首次設定（或既有全部已停用）的情境：系統必須隨時有一個使用中的代收
+// 主錢包可當導引Gate（internal/order/masterwallet.go），否則沒辦法配發任何
+// 訂單收款地址，所以這個分支新紀錄仍自動active，不需要商戶額外操作。
+func TestCreateMasterWalletHandler_NoExistingActiveWallet_NewOneAutoActivates(t *testing.T) {
+	pool := testPool(t)
+	resetDB(t, pool)
+
+	deps := Deps{Pool: pool, TronClient: tronclient.NewClient("http://unused.invalid", ""), USDTContractAddress: "T-unused"}
+	srv := newTestServer(t, deps)
+	cookie, secret := newActiveSessionWithTOTP(t, pool)
+
+	body, _ := json.Marshal(createMasterWalletRequest{Xpub: secondTestXpub})
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/admin/master-wallets", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Totp-Code", totpCodeAt(t, secret, time.Now()))
+	req.AddCookie(cookie)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200, body: %s", resp.StatusCode, respBody)
+	}
+
+	var newStatus string
+	if err := pool.QueryRow(context.Background(), `SELECT status FROM master_wallets WHERE xpub = $1`, secondTestXpub).Scan(&newStatus); err != nil {
+		t.Fatalf("query new wallet: %v", err)
+	}
+	if newStatus != "active" {
+		t.Errorf("new wallet status = %q, want active (no pre-existing active wallet)", newStatus)
 	}
 }
 
