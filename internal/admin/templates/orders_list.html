@@ -14,7 +14,7 @@
     <span class="lbl">狀態</span>
     <div class="chips">
       {{range .AllStatuses}}
-      <label class="chip{{if index $.SelectedStatus .}} on{{end}}"><input type="checkbox" name="status" value="{{.}}" {{if index $.SelectedStatus .}}checked{{end}}> {{.}}</label>
+      <label class="chip"><input type="checkbox" name="status" value="{{.}}" {{if index $.SelectedStatus .}}checked{{end}}> {{.}}</label>
       {{end}}
     </div>
   </div>
