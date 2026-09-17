@@ -18,14 +18,17 @@ type Config struct {
 	// Environment distinguishes production from test deployments.
 	Environment string
 	// TronGridBaseURL is the base URL for TronGrid API calls (see
-	// internal/tronclient). Overridable for testnets (Shasta) or
-	// self-hosted TronGrid-compatible endpoints.
+	// internal/tronclient). Defaults from NETWORK; overridable directly
+	// for Nile testnet, self-hosted nodes, or TronGrid-compatible proxies
+	// not covered by the mainnet/shasta presets.
 	TronGridBaseURL string
 	// TronGridAPIKey is optional — TronGrid allows unauthenticated
 	// requests at a lower rate limit (see internal/tronclient.NewClient).
 	TronGridAPIKey string
 	// USDTContractAddress is the TRC20 contract internal/scanner watches
-	// for Transfer events (see internal/scanner).
+	// for Transfer events (see internal/scanner). Defaults from NETWORK;
+	// overridable directly for the same non-preset cases as
+	// TronGridBaseURL.
 	USDTContractAddress string
 	// PublicOrigin is the merchant-facing origin (e.g.
 	// https://pay.merchant.com), used to build checkout page URLs (see
@@ -49,6 +52,7 @@ const (
 	envListenAddr          = "LISTEN_ADDR"
 	envDatabaseURL         = "DATABASE_URL"
 	envEnvironment         = "ENVIRONMENT"
+	envNetwork             = "NETWORK"
 	envTronGridBaseURL     = "TRONGRID_BASE_URL"
 	envTronGridAPIKey      = "TRONGRID_API_KEY" //nolint:gosec // this is an env var name, not a credential
 	envUSDTContractAddress = "USDT_CONTRACT_ADDRESS"
@@ -57,22 +61,54 @@ const (
 	envAdminPassword       = "ADMIN_PASSWORD" //nolint:gosec // this is an env var name, not a credential
 	envCookieSecure        = "COOKIE_SECURE"
 
-	defaultListenAddr      = ":8080"
-	defaultEnvironment     = "production"
-	defaultTronGridBaseURL = "https://api.trongrid.io"
-	defaultCookieSecure    = true
+	defaultListenAddr   = ":8080"
+	defaultEnvironment  = "production"
+	defaultCookieSecure = true
+
+	// networkMainnet and networkShasta are the only NETWORK values Load
+	// recognizes. Nile testnet or self-hosted/proxy endpoints are reached
+	// via explicit TRONGRID_BASE_URL/USDT_CONTRACT_ADDRESS overrides
+	// instead of a third preset (見 docs/進度.md 階段08 NETWORK enum討論).
+	networkMainnet = "mainnet"
+	networkShasta  = "shasta"
+
+	mainnetTronGridBaseURL     = "https://api.trongrid.io"
+	mainnetUSDTContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+	// shastaUSDTContractAddress is Shasta 測試網水龍頭內建的 USDT 測試代幣合約
+	// （非Tether官方發行，但地址固定，各家水龍頭/文件皆沿用同一組）。
+	shastaTronGridBaseURL     = "https://api.shasta.trongrid.io"
+	shastaUSDTContractAddress = "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"
 )
 
 // Load reads Config from environment variables, applying defaults for
-// optional values. DatabaseURL and USDTContractAddress are required.
+// optional values. DatabaseURL and PublicOrigin are required.
+//
+// NETWORK ("mainnet", the default, or "shasta") selects the default
+// TronGridBaseURL/USDTContractAddress pair; either can still be
+// overridden directly for Nile testnet, a self-hosted node, or a
+// TronGrid-compatible proxy.
 func Load() (Config, error) {
+	network := getEnvDefault(envNetwork, networkMainnet)
+
+	var networkTronGridBaseURL, networkUSDTContractAddress string
+	switch network {
+	case networkMainnet:
+		networkTronGridBaseURL = mainnetTronGridBaseURL
+		networkUSDTContractAddress = mainnetUSDTContractAddress
+	case networkShasta:
+		networkTronGridBaseURL = shastaTronGridBaseURL
+		networkUSDTContractAddress = shastaUSDTContractAddress
+	default:
+		return Config{}, fmt.Errorf("config: %s = %q is not recognized (want %q or %q)", envNetwork, network, networkMainnet, networkShasta)
+	}
+
 	cfg := Config{
 		ListenAddr:          getEnvDefault(envListenAddr, defaultListenAddr),
 		DatabaseURL:         os.Getenv(envDatabaseURL),
 		Environment:         getEnvDefault(envEnvironment, defaultEnvironment),
-		TronGridBaseURL:     getEnvDefault(envTronGridBaseURL, defaultTronGridBaseURL),
+		TronGridBaseURL:     getEnvDefault(envTronGridBaseURL, networkTronGridBaseURL),
 		TronGridAPIKey:      os.Getenv(envTronGridAPIKey),
-		USDTContractAddress: os.Getenv(envUSDTContractAddress),
+		USDTContractAddress: getEnvDefault(envUSDTContractAddress, networkUSDTContractAddress),
 		PublicOrigin:        os.Getenv(envPublicOrigin),
 		AdminUsername:       os.Getenv(envAdminUsername),
 		AdminPassword:       os.Getenv(envAdminPassword),
@@ -81,9 +117,6 @@ func Load() (Config, error) {
 
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("config: %s is required", envDatabaseURL)
-	}
-	if cfg.USDTContractAddress == "" {
-		return Config{}, fmt.Errorf("config: %s is required", envUSDTContractAddress)
 	}
 	if cfg.PublicOrigin == "" {
 		return Config{}, fmt.Errorf("config: %s is required", envPublicOrigin)

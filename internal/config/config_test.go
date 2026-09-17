@@ -6,9 +6,10 @@ func TestLoad_Defaults(t *testing.T) {
 	t.Setenv(envListenAddr, "")
 	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
 	t.Setenv(envEnvironment, "")
+	t.Setenv(envNetwork, "")
 	t.Setenv(envTronGridBaseURL, "")
 	t.Setenv(envTronGridAPIKey, "")
-	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envUSDTContractAddress, "")
 	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 	t.Setenv(envAdminUsername, "")
 	t.Setenv(envAdminPassword, "")
@@ -24,8 +25,11 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.Environment != defaultEnvironment {
 		t.Errorf("Environment = %q, want %q", cfg.Environment, defaultEnvironment)
 	}
-	if cfg.TronGridBaseURL != defaultTronGridBaseURL {
-		t.Errorf("TronGridBaseURL = %q, want %q", cfg.TronGridBaseURL, defaultTronGridBaseURL)
+	if cfg.TronGridBaseURL != mainnetTronGridBaseURL {
+		t.Errorf("TronGridBaseURL = %q, want %q (default NETWORK=mainnet)", cfg.TronGridBaseURL, mainnetTronGridBaseURL)
+	}
+	if cfg.USDTContractAddress != mainnetUSDTContractAddress {
+		t.Errorf("USDTContractAddress = %q, want %q (default NETWORK=mainnet)", cfg.USDTContractAddress, mainnetUSDTContractAddress)
 	}
 	if cfg.TronGridAPIKey != "" {
 		t.Errorf("TronGridAPIKey = %q, want empty (optional)", cfg.TronGridAPIKey)
@@ -38,13 +42,46 @@ func TestLoad_Defaults(t *testing.T) {
 	}
 }
 
+func TestLoad_NetworkShasta(t *testing.T) {
+	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
+	t.Setenv(envNetwork, "shasta")
+	t.Setenv(envTronGridBaseURL, "")
+	t.Setenv(envUSDTContractAddress, "")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.TronGridBaseURL != shastaTronGridBaseURL {
+		t.Errorf("TronGridBaseURL = %q, want %q (NETWORK=shasta)", cfg.TronGridBaseURL, shastaTronGridBaseURL)
+	}
+	if cfg.USDTContractAddress != shastaUSDTContractAddress {
+		t.Errorf("USDTContractAddress = %q, want %q (NETWORK=shasta)", cfg.USDTContractAddress, shastaUSDTContractAddress)
+	}
+}
+
+func TestLoad_NetworkUnrecognized(t *testing.T) {
+	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
+	t.Setenv(envNetwork, "nile")
+	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
+
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil, want error for unrecognized NETWORK value")
+	}
+}
+
 func TestLoad_Overrides(t *testing.T) {
 	t.Setenv(envListenAddr, ":9090")
 	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
 	t.Setenv(envEnvironment, "test")
-	t.Setenv(envTronGridBaseURL, "https://shasta.trongrid.io")
+	// NETWORK=shasta here to prove explicit TRONGRID_BASE_URL/
+	// USDT_CONTRACT_ADDRESS still win over the network preset (e.g. for
+	// Nile testnet or a self-hosted node).
+	t.Setenv(envNetwork, "shasta")
+	t.Setenv(envTronGridBaseURL, "https://nile.trongrid.io")
 	t.Setenv(envTronGridAPIKey, "test-key")
-	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	t.Setenv(envUSDTContractAddress, "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf")
 	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 	t.Setenv(envAdminUsername, "admin")
 	t.Setenv(envAdminPassword, "bootstrap-password")
@@ -66,20 +103,19 @@ func TestLoad_Overrides(t *testing.T) {
 	if cfg.Environment != "test" {
 		t.Errorf("Environment = %q, want %q", cfg.Environment, "test")
 	}
-	if cfg.TronGridBaseURL != "https://shasta.trongrid.io" {
+	if cfg.TronGridBaseURL != "https://nile.trongrid.io" {
 		t.Errorf("TronGridBaseURL = %q, want override", cfg.TronGridBaseURL)
 	}
 	if cfg.TronGridAPIKey != "test-key" {
 		t.Errorf("TronGridAPIKey = %q, want test-key", cfg.TronGridAPIKey)
 	}
-	if cfg.USDTContractAddress != "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" {
+	if cfg.USDTContractAddress != "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf" {
 		t.Errorf("USDTContractAddress = %q, want override", cfg.USDTContractAddress)
 	}
 }
 
 func TestLoad_MissingDatabaseURL(t *testing.T) {
 	t.Setenv(envDatabaseURL, "")
-	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
 
 	if _, err := Load(); err == nil {
@@ -87,19 +123,8 @@ func TestLoad_MissingDatabaseURL(t *testing.T) {
 	}
 }
 
-func TestLoad_MissingUSDTContractAddress(t *testing.T) {
-	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
-	t.Setenv(envUSDTContractAddress, "")
-	t.Setenv(envPublicOrigin, "https://pay.merchant.example")
-
-	if _, err := Load(); err == nil {
-		t.Fatal("Load() error = nil, want error for missing USDT_CONTRACT_ADDRESS")
-	}
-}
-
 func TestLoad_MissingPublicOrigin(t *testing.T) {
 	t.Setenv(envDatabaseURL, "postgres://user:pass@localhost:5432/ucollection")
-	t.Setenv(envUSDTContractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 	t.Setenv(envPublicOrigin, "")
 
 	if _, err := Load(); err == nil {
