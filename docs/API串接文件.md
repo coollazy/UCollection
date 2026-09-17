@@ -19,9 +19,13 @@
 2. 把付款人的瀏覽器導向 `checkout_url`——這頁完全由系統自己架設與維護（含 QR code、倒數、狀態顯示），你不需要另外開發付款畫面。
 3. 系統在背景持續掃描鏈上事件，判斷這筆訂單的收款狀態。
 4. 訂單進入最終狀態（COMPLETED / OVERPAID / CONFIRMATION_STALLED / EXPIRED 四者之一）時，系統會主動呼叫你設定的 Webhook URL 通知你。
-5. 你也可以隨時用 `GET /api/v1/orders/{id}` 或 `GET /api/v1/orders?merchant_order_no=` 主動查詢目前狀態，作為 Webhook 之外的備援手段。
+5. 你也可以隨時用 `GET /api/v1/orders/{id}` 或 `GET /api/v1/orders?merchant_order_no=` 主動查詢目前狀態，作為 Webhook 之外的備援手段——建議只針對「訂單已超過 `expires_at` 一段時間、但你還沒收到對應終態 Webhook」的少數訂單低頻補查（例如每幾分鐘一次），不需要對所有訂單持續高頻輪詢。
+
+這些 API 是設計給**你的後端對後端呼叫**，不是給瀏覽器前端直接呼叫：伺服器端沒有設定任何 CORS 允許跨域，瀏覽器直接呼叫會被瀏覽器擋下；`X-API-Key`/`secret` 也不應該出現在前端程式碼中，一旦外洩等同任何人都能用你的身分建單。
 
 ## 三、認證：API Key + HMAC 簽章
+
+**這些請求務必全程走 HTTPS。** `X-API-Key` 是明碼傳輸，系統本身不內建 TLS（見 `docs/部署文件.md` 第八節），如果你這端還沒架好 HTTPS 反向代理就先用 http 呼叫正式環境，API Key 會在傳輸過程中明碼外洩。
 
 所有 `/api/v1/...` 請求都要帶三個 Header：
 
@@ -43,22 +47,25 @@ X-Signature = hex( HMAC-SHA256(secret, 待簽字串) )
 - 待簽字串是**直接字串相接**，中間沒有任何分隔符號。
 - 路徑要包含 query string（例如 `/api/v1/orders?merchant_order_no=ORDER-0001`），且必須跟實際 HTTP 請求送出的位元組完全一致——先組好 query string 再簽章，不要簽完之後才讓 HTTP 函式庫重新編碼/排序參數，否則簽章會對不上。
 - `X-Timestamp` 與伺服器當下時間相差超過 ±5 分鐘會被拒絕（防重放），所以每次請求都要用當下時間重新產生，不能快取舊的簽章重複使用。
-- 認證失敗（金鑰不存在、金鑰已撤銷、簽章不符、時間戳過期）一律回同一種錯誤 `401 INVALID_SIGNATURE`，不會告訴你確切原因是什麼——這是刻意設計，避免外部藉由錯誤訊息差異探測金鑰是否存在，串接時如果一直收到這個錯誤，請照上面幾點逐一排查。
+- 認證失敗（金鑰不存在、金鑰已撤銷、簽章不符、時間戳過期）一律回同一種錯誤 `401 INVALID_SIGNATURE`，不會告訴你確切原因是什麼——這是刻意設計，避免外部藉由錯誤訊息差異探測金鑰是否存在，串接時如果一直收到這個錯誤，請照上面幾點逐一排查。判斷依據：**400 是請求格式問題（缺欄位、body 太大、JSON 格式錯），401 是金鑰/簽章/時間戳問題**——但要注意 POST 請求的 JSON 格式檢查發生在簽章驗證「之後」，所以格式錯的 POST 請求如果簽章也是錯的，你只會看到 401，不會看到 400。另外請求 body 上限 1MB，超過會被直接截斷讀取，導致簽章怎麼算都對不上、一樣回 401。
+- 如果 `merchant_order_no` 含有中文、空白、`&`、`+` 等需要 URL-encode 的字元（欄位本身沒有格式限制，純文字皆可），**GET 查詢時務必先把它 encode 成 query string，再對 encode 後的完整路徑+query string 簽章**——簽章是對「實際送出的位元組」算的，如果你簽的是 encode 前的原始字串，送出去的請求會對不上簽章而回 401。建單時放在 JSON body 裡就不需要額外處理，body 本身就是簽章的一部分。
 
 ### curl 範例：建立訂單
 
 ```bash
+# 注意：變數名不要用 PATH——那是 shell 保留的環境變數，
+# 覆蓋掉之後 openssl/curl 這些外部指令會找不到路徑而執行失敗。
 API_KEY="你的key"
 API_SECRET="你的secret"
 TIMESTAMP=$(date +%s)
 METHOD="POST"
-PATH="/api/v1/orders"
+REQ_PATH="/api/v1/orders"
 BODY='{"merchant_order_no":"ORDER-0001","target_amount":"100000000"}'
 
-STRING_TO_SIGN="${TIMESTAMP}${METHOD}${PATH}${BODY}"
+STRING_TO_SIGN="${TIMESTAMP}${METHOD}${REQ_PATH}${BODY}"
 SIGNATURE=$(printf '%s' "$STRING_TO_SIGN" | openssl dgst -sha256 -hmac "$API_SECRET" | sed 's/^.* //')
 
-curl -X POST "https://pay.merchant.example${PATH}" \
+curl -X POST "https://pay.merchant.example${REQ_PATH}" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: ${API_KEY}" \
   -H "X-Timestamp: ${TIMESTAMP}" \
@@ -71,12 +78,12 @@ curl -X POST "https://pay.merchant.example${PATH}" \
 ```bash
 TIMESTAMP=$(date +%s)
 METHOD="GET"
-PATH="/api/v1/orders?merchant_order_no=ORDER-0001"
+REQ_PATH="/api/v1/orders?merchant_order_no=ORDER-0001"
 
-STRING_TO_SIGN="${TIMESTAMP}${METHOD}${PATH}"
+STRING_TO_SIGN="${TIMESTAMP}${METHOD}${REQ_PATH}"
 SIGNATURE=$(printf '%s' "$STRING_TO_SIGN" | openssl dgst -sha256 -hmac "$API_SECRET" | sed 's/^.* //')
 
-curl -X GET "https://pay.merchant.example${PATH}" \
+curl -X GET "https://pay.merchant.example${REQ_PATH}" \
   -H "X-API-Key: ${API_KEY}" \
   -H "X-Timestamp: ${TIMESTAMP}" \
   -H "X-Signature: ${SIGNATURE}"
@@ -84,11 +91,19 @@ curl -X GET "https://pay.merchant.example${PATH}" \
 
 （GET 請求沒有 body，待簽字串到路徑為止，後面等同接一個空字串。）
 
+若 `merchant_order_no` 含需要 encode 的字元，例如訂單編號是 `訂單 0001`，要先 encode 成 query string 再簽章：
+
+```bash
+REQ_PATH="/api/v1/orders?merchant_order_no=%E8%A8%82%E5%96%AE%200001"
+# STRING_TO_SIGN 用這個 encode 後的 REQ_PATH 組，curl 也要用同一個 REQ_PATH 發送，
+# 兩邊字元必須完全一致，否則簽章對不上。
+```
+
 ## 四、API 端點
 
 ### 金額單位
 
-所有金額欄位都是 **USDT 最小單位（6位小數）的整數字串**，不是浮點數。例如 100 USDT 要傳 `"100000000"`；不要傳 `"100.5"` 這種小數形式。
+所有金額欄位都是 **USDT 最小單位（6位小數）的整數字串**，不是浮點數。例如 100 USDT 要傳 `"100000000"`；不要傳 `"100.5"` 這種小數形式。`target_amount` 上限為 int64 可表示範圍（9223372036854775807），超過會直接回 `400 INVALID_REQUEST`，實務上不會碰到這個限制。
 
 ### `POST /api/v1/orders` — 建立訂單
 
@@ -116,6 +131,10 @@ Response（`201 Created`，或冪等重放時 `200 OK`）：
 ```
 
 **冪等性規則**：`merchant_order_no` 相同、`target_amount` 也相同 → 視為網路逾時重試，直接回傳原本那筆訂單（`200`），**不會**建立新訂單或分配新地址；`merchant_order_no` 相同但 `target_amount` 不同 → 視為衝突，回 `409 ORDER_CONFLICT`。這代表你這端如果請求逾時不確定有沒有成功，可以直接用同一組 `merchant_order_no`+`target_amount` 安全地重試，不會造成重複建單。不同的 `merchant_order_no` 各自獨立，互不影響，即使金額相同也會各自建立、各自分配獨立收款地址。
+
+**訂單一經建立，`target_amount` 就不能修改**——沒有提供更新金額的 API，上面的 409 衝突規則就是防止你誤用同一個 `merchant_order_no` 改金額。如果訂單金額真的要改，請用新的 `merchant_order_no` 另外建一筆。
+
+`address` 每筆訂單都不同：系統依 xpub（HD 錢包公鑰）為每筆訂單各自衍生一個獨立收款地址，地址跟訂單永久一對一綁定，不會重複使用，你不需要（也不應該）把多筆訂單導向同一個地址收款。
 
 ### `GET /api/v1/orders/{id}` — 依系統訂單 ID 查詢
 
@@ -164,6 +183,10 @@ Response（`201 Created`，或冪等重放時 `200 OK`）：
 
 四個終態各自會觸發一次 Webhook 通知（見下一節）。
 
+**`COMPLETED` 不保證收到足額 `target_amount`。** 系統依後台設定的「容許誤差百分比」，在建單當下算出一個金額區間 `[下界, 上界]`：鏈上最終確認金額只要落在這個區間內就會轉 `COMPLETED`（即使略低於 `target_amount`，也就是短收在容許範圍內一樣算完成）；超過上界才轉 `OVERPAID`；低於下界則不會轉態，繼續等待或最終進入 `CONFIRMATION_STALLED`。**這是財務對帳的關鍵點：請一律以查詢 API 回傳的 `confirmed_amount`（或 Webhook 的 `total_confirmed_amount`）作為實際入帳金額，不要假設 `COMPLETED` 就等於收到了 `target_amount`。** 容許誤差百分比是商戶自己在後台設定的值，此 API 不會告訴你目前設定是多少。
+
+**`EXPIRED` 是系統背景輪詢判定，不是到了 `expires_at` 那一刻精確轉態**，實際轉態時間可能比 `expires_at` 晚幾秒到幾十秒（視背景任務輪詢間隔而定）。如果付款發生在 `expires_at` 前後的臨界時間點，只要系統在轉為 `EXPIRED` 之前先偵測到入帳，訂單就會正常走 `CONFIRMING` 而不會被判為過期——請不要在 `expires_at` 一到就片面認定訂單已失效，仍以實際回傳的 `status` 為準。
+
 ### 錯誤回應格式
 
 統一格式：
@@ -195,6 +218,8 @@ Response（`201 Created`，或冪等重放時 `200 OK`）：
 ### 觸發時機
 
 訂單進入四個終態之一（`COMPLETED`／`OVERPAID`／`CONFIRMATION_STALLED`／`EXPIRED`）時，系統會各觸發一次通知。**同一筆訂單有可能收到不只一次通知**：例如系統先判定 `CONFIRMATION_STALLED` 並通知你，之後商戶後台管理員人工查證後改判為 `COMPLETED`，這又會是新的一次終態進入、再觸發一次通知。請依 `event_type`/`status` 判斷這是哪一次的通知，不要假設每筆訂單只會收到一次。
+
+**Webhook 不是即時推播。** 系統用背景 worker 每 10 秒巡一次待送清單，訂單進終態到第一次真正送出通知之間，本來就會有數秒的延遲；如果第一次沒送成功還會再等重試間隔。請不要設計成「終態發生的瞬間就必須收到通知」的邏輯，時間敏感的場景建議搭配上一節提到的 GET 查詢備援。
 
 ### Payload
 
